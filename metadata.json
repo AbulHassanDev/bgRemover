@@ -1,0 +1,6 @@
+{
+  "name": "AI Background Remover & Edge Studio",
+  "description": "High-precision AI background removal with interactive comparison, manual erase/restore edge refinement brushes, background replacement, and batch processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
