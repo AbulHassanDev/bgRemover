@@ -2,6 +2,14 @@ import { GradientOption, StockBackground, SampleImage } from '../types';
 
 export const SAMPLE_IMAGES: SampleImage[] = [
   {
+    id: 'sample-ceo',
+    title: 'AbulHassan (Founder & CEO)',
+    category: 'Executive',
+    difficulty: 'Studio Portrait',
+    url: '/images/abulhassan_ceo.jpg',
+    thumbnail: '/images/abulhassan_ceo.jpg',
+  },
+  {
     id: 'sample-portrait',
     title: 'Model Portrait',
     category: 'Portrait',

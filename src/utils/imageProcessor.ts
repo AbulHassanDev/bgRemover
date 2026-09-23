@@ -1,16 +1,47 @@
-import { BackgroundSettings, ApiSettings } from '../types';
+import { BackgroundSettings, ApiSettings, CropRect } from '../types';
+
+const imageCache = new Map<string, HTMLImageElement>();
 
 /**
- * Load an image safely from URL or base64 data URL
+ * Load an image safely from URL or base64 data URL with LRU memory caching
  */
 export function loadImage(src: string): Promise<HTMLImageElement> {
+  if (imageCache.has(src)) {
+    const cached = imageCache.get(src)!;
+    if (cached.complete && cached.naturalWidth > 0) {
+      return Promise.resolve(cached);
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      if (imageCache.size > 40) {
+        const firstKey = imageCache.keys().next().value;
+        if (firstKey) imageCache.delete(firstKey);
+      }
+      imageCache.set(src, img);
+      resolve(img);
+    };
     img.onerror = (e) => reject(new Error(`Failed to load image from source: ${e}`));
     img.src = src;
   });
+}
+
+/**
+ * Convert hex color string to rgba CSS string
+ */
+export function hexToRgba(hex: string, alpha: number): string {
+  let clean = hex.replace('#', '').trim();
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
 /**
@@ -593,8 +624,31 @@ export async function renderCompositedCanvas(
     }
   }
 
-  // 2. Draw Foreground Cutout
-  ctx.drawImage(cutoutImg, 0, 0, w, h);
+  // 2. Draw Foreground Cutout (with natural drop shadow if enabled)
+  if (
+    bgSettings.shadowEnabled &&
+    bgSettings.shadowOpacity > 0 &&
+    (bgSettings.shadowDistance > 0 || bgSettings.shadowBlur > 0)
+  ) {
+    ctx.save();
+    const angleRad = ((bgSettings.shadowAngle ?? 135) * Math.PI) / 180;
+    // Scale shadow distance and blur proportionally to image resolution (baseline 800px)
+    const scale = Math.max(0.4, Math.min(3, Math.max(w, h) / 800));
+    const offsetX = Math.cos(angleRad) * bgSettings.shadowDistance * scale;
+    const offsetY = Math.sin(angleRad) * bgSettings.shadowDistance * scale;
+    const blur = bgSettings.shadowBlur * scale;
+    const opacity = Math.min(1, Math.max(0, bgSettings.shadowOpacity / 100));
+
+    ctx.shadowColor = hexToRgba(bgSettings.shadowColor || '#000000', opacity);
+    ctx.shadowBlur = blur;
+    ctx.shadowOffsetX = offsetX;
+    ctx.shadowOffsetY = offsetY;
+
+    ctx.drawImage(cutoutImg, 0, 0, w, h);
+    ctx.restore();
+  } else {
+    ctx.drawImage(cutoutImg, 0, 0, w, h);
+  }
 
   return canvas;
 }
@@ -640,3 +694,82 @@ export function formatBytes(bytes: number, decimals = 1): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
+
+/**
+ * Crop an image to a given bounding rectangle with optional target output resolution
+ */
+export async function cropImage(
+  imageUrl: string,
+  rect: CropRect,
+  targetWidth?: number,
+  targetHeight?: number,
+  mimeType = 'image/png'
+): Promise<string> {
+  const img = await loadImage(imageUrl);
+  const outW = Math.max(1, Math.round(targetWidth || rect.width));
+  const outH = Math.max(1, Math.round(targetHeight || rect.height));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get canvas context for cropping');
+
+  // Enable high quality image smoothing
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Clamp bounding rect to actual image bounds to avoid out-of-bounds artifacting
+  const srcX = Math.max(0, Math.min(img.naturalWidth - 1, rect.x));
+  const srcY = Math.max(0, Math.min(img.naturalHeight - 1, rect.y));
+  const srcW = Math.max(1, Math.min(img.naturalWidth - srcX, rect.width));
+  const srcH = Math.max(1, Math.min(img.naturalHeight - srcY, rect.height));
+
+  ctx.drawImage(
+    img,
+    Math.round(srcX),
+    Math.round(srcY),
+    Math.round(srcW),
+    Math.round(srcH),
+    0,
+    0,
+    outW,
+    outH
+  );
+
+  return canvas.toDataURL(mimeType);
+}
+
+/**
+ * Synchronously crop all image layers (original, cutout, alpha mask) to keep them 100% aligned
+ */
+export async function cropAllLayers(
+  originalUrl: string,
+  processedUrl: string,
+  maskUrl: string | null,
+  cropRect: CropRect,
+  targetWidth?: number,
+  targetHeight?: number
+): Promise<{
+  croppedOriginalUrl: string;
+  croppedProcessedUrl: string;
+  croppedMaskUrl: string | null;
+  dimensions: { width: number; height: number };
+}> {
+  const finalW = Math.max(1, Math.round(targetWidth || cropRect.width));
+  const finalH = Math.max(1, Math.round(targetHeight || cropRect.height));
+
+  const [croppedOrig, croppedProc, croppedMask] = await Promise.all([
+    cropImage(originalUrl, cropRect, finalW, finalH, 'image/jpeg'),
+    cropImage(processedUrl, cropRect, finalW, finalH, 'image/png'),
+    maskUrl ? cropImage(maskUrl, cropRect, finalW, finalH, 'image/png') : Promise.resolve(null),
+  ]);
+
+  return {
+    croppedOriginalUrl: croppedOrig,
+    croppedProcessedUrl: croppedProc,
+    croppedMaskUrl: croppedMask,
+    dimensions: { width: finalW, height: finalH },
+  };
+}
+

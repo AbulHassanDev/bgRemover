@@ -13,9 +13,10 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     { key: 'Ctrl + V / ⌘ + V', desc: 'Paste image from clipboard anywhere' },
     { key: 'Spacebar + Drag', desc: 'Pan / Move canvas viewport' },
     { key: 'Scroll Wheel', desc: 'Zoom in / out on comparison canvas' },
-    { key: 'Ctrl + Z / ⌘ + Z', desc: 'Undo manual brush refinement stroke' },
-    { key: 'Ctrl + Y / ⌘ + Y', desc: 'Redo manual brush refinement stroke' },
-    { key: 'E / B', desc: 'Quick switch to Erase / Restore brush' },
+    { key: 'Ctrl + Z / ⌘ + Z', desc: 'Undo image edit (brush strokes or background changes)' },
+    { key: 'Ctrl + Y / ⌘ + ⇧ + Z', desc: 'Redo image edit (brush strokes or background changes)' },
+    { key: 'C', desc: 'Open Crop Canvas & Aspect Ratio trimmer' },
+    { key: 'E / B', desc: 'Quick switch to Erase / Restore brush in Edge Refiner' },
   ];
 
   return (

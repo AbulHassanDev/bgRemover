@@ -21,6 +21,7 @@ interface NavbarProps {
   apiSettings: ApiSettings;
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
+  onScrollToCeo?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -32,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   apiSettings,
   onOpenSettings,
   onOpenShortcuts,
+  onScrollToCeo,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs">

@@ -1,6 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Columns, SplitSquareVertical, Eye, ZoomIn, ZoomOut, Maximize2, Sparkles } from 'lucide-react';
-import { ViewMode, BackgroundSettings } from '../types';
+import {
+  Columns,
+  SplitSquareVertical,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Sparkles,
+  Crop,
+  Undo2,
+  Redo2,
+  Wand2,
+} from 'lucide-react';
+import { ViewMode, BackgroundSettings, HoverBgPreview } from '../types';
+import { hexToRgba } from '../utils/imageProcessor';
 
 interface ComparisonSliderProps {
   originalUrl: string;
@@ -8,11 +21,18 @@ interface ComparisonSliderProps {
   maskUrl: string | null;
   bgSettings: BackgroundSettings;
   compositedUrl?: string | null;
+  hoverBgPreview?: HoverBgPreview | null;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   onOpenEdgeRefiner: () => void;
+  onOpenCropModal?: () => void;
+  onOpenEnhanceModal?: () => void;
   onResetImage: () => void;
   dimensions: { width: number; height: number };
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
@@ -21,10 +41,17 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
   maskUrl,
   bgSettings,
   compositedUrl,
+  hoverBgPreview,
   viewMode,
   setViewMode,
   onOpenEdgeRefiner,
+  onOpenCropModal,
+  onOpenEnhanceModal,
   dimensions,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
 }) => {
   const [sliderPos, setSliderPos] = useState(50); // percentage (0 - 100)
   const [isDragging, setIsDragging] = useState(false);
@@ -35,8 +62,33 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Active display url for the right/after side
-  const afterDisplayUrl = compositedUrl || processedUrl;
+  // Hover preview background style for live CSS rendering behind cutout
+  const hoverBgStyle: React.CSSProperties | undefined = hoverBgPreview
+    ? hoverBgPreview.type === 'solid'
+      ? { backgroundColor: hoverBgPreview.color, transition: 'background-color 0.15s ease-out' }
+      : { background: hoverBgPreview.gradientCss, transition: 'background 0.15s ease-out' }
+    : undefined;
+
+  // Active display url for the right/after side:
+  // When hoverBgPreview is active, use transparent cutout so CSS background shows through instantly
+  const effectiveAfterUrl = hoverBgPreview ? processedUrl : (compositedUrl || processedUrl);
+
+  // Live CSS drop-shadow filter when previewing or before composite canvas resolves
+  const cutoutShadowStyle: React.CSSProperties | undefined =
+    bgSettings.shadowEnabled &&
+    bgSettings.shadowOpacity > 0 &&
+    effectiveAfterUrl === processedUrl
+      ? {
+          filter: `drop-shadow(${Math.round(
+            Math.cos(((bgSettings.shadowAngle ?? 135) * Math.PI) / 180) * bgSettings.shadowDistance
+          )}px ${Math.round(
+            Math.sin(((bgSettings.shadowAngle ?? 135) * Math.PI) / 180) * bgSettings.shadowDistance
+          )}px ${bgSettings.shadowBlur}px ${hexToRgba(
+            bgSettings.shadowColor || '#000000',
+            bgSettings.shadowOpacity / 100
+          )})`,
+        }
+      : undefined;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('.zoom-controls') || (e.target as HTMLElement).closest('.slider-handle-area')) {
@@ -174,8 +226,52 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
           )}
         </div>
 
-        {/* Action Buttons: Edge Refiner Studio & Dimensions */}
+        {/* Action Buttons: Quick Undo/Redo, Edge Refiner Studio & Dimensions */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {onUndo && onRedo && (
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+              <button
+                id="btn-slider-quick-undo"
+                onClick={onUndo}
+                disabled={!canUndo}
+                title="Undo edit (Ctrl+Z / ⌘Z)"
+                className={`p-1.5 rounded-md transition-all ${
+                  canUndo
+                    ? 'text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 cursor-pointer shadow-2xs'
+                    : 'text-slate-300 cursor-not-allowed opacity-40'
+                }`}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                id="btn-slider-quick-redo"
+                onClick={onRedo}
+                disabled={!canRedo}
+                title="Redo edit (Ctrl+Y / ⌘⇧Z)"
+                className={`p-1.5 rounded-md transition-all ${
+                  canRedo
+                    ? 'text-slate-700 hover:text-slate-900 hover:bg-white active:scale-95 cursor-pointer shadow-2xs'
+                    : 'text-slate-300 cursor-not-allowed opacity-40'
+                }`}
+              >
+                <Redo2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {onOpenEnhanceModal && (
+            <button
+              id="btn-open-ai-enhance"
+              onClick={onOpenEnhanceModal}
+              title="AI Picture Enhancer: Exposure, micro-contrast sharpness, vibrancy, and edge defringe"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-xs font-bold shadow-xs shadow-indigo-300 transition-all cursor-pointer shrink-0 active:scale-95"
+            >
+              <Wand2 className="w-3.5 h-3.5 text-white" />
+              <span className="hidden sm:inline">AI Enhance</span>
+              <span className="sm:hidden">Enhance</span>
+            </button>
+          )}
+
           <button
             id="btn-open-edge-refiner"
             onClick={onOpenEdgeRefiner}
@@ -186,10 +282,31 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
             <span className="sm:hidden">Brush Refine</span>
           </button>
 
-          {/* Image Dimensions Info */}
-          <div className="hidden md:flex items-center text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-100 px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200 shrink-0">
+          {onOpenCropModal && (
+            <button
+              id="btn-open-crop-canvas"
+              onClick={onOpenCropModal}
+              title="Crop Canvas & Aspect Ratio (1:1, 4:5, 16:9, or custom dimensions)"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs"
+            >
+              <Crop className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Crop Canvas</span>
+              <span className="sm:hidden">Crop</span>
+            </button>
+          )}
+
+          {/* Image Dimensions Info (clickable to open crop) */}
+          <button
+            onClick={onOpenCropModal}
+            title={onOpenCropModal ? "Click to crop or change canvas dimensions" : undefined}
+            className={`hidden md:flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2 sm:px-2.5 py-1.5 rounded-lg border transition-colors shrink-0 ${
+              onOpenCropModal
+                ? 'text-slate-600 hover:text-amber-800 bg-slate-100 hover:bg-amber-50/70 border-slate-200 hover:border-amber-300 cursor-pointer'
+                : 'text-slate-500 bg-slate-100 border-slate-200'
+            }`}
+          >
             {dimensions.width} × {dimensions.height} px
-          </div>
+          </button>
         </div>
       </div>
 
@@ -229,6 +346,21 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
           </button>
         </div>
 
+        {/* Floating Live Hover Preview Pill Banner */}
+        {hoverBgPreview && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center gap-2 bg-slate-900/90 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-lg border border-white/20 text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-semibold text-slate-200">Live Preview:</span>
+            <span className="font-bold text-indigo-300">{hoverBgPreview.name}</span>
+            <span className="text-[10px] font-mono text-slate-300">
+              {hoverBgPreview.type === 'solid' ? hoverBgPreview.color : `${hoverBgPreview.angle}°`}
+            </span>
+            <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white/90">
+              Click option to apply
+            </span>
+          </div>
+        )}
+
         {/* 1. Split Screen Slider Mode */}
         {viewMode === 'slider' && (
           <div
@@ -239,11 +371,15 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               transition: isPanning ? 'none' : 'transform 0.1s ease-out',
             }}
           >
-            <div className="relative max-w-full max-h-full aspect-auto shadow-2xl rounded-lg overflow-hidden flex items-center justify-center">
+            <div
+              className="relative max-w-full max-h-full aspect-auto shadow-2xl rounded-lg overflow-hidden flex items-center justify-center transition-colors duration-150"
+              style={hoverBgStyle}
+            >
               {/* After Image (Background cutout / composited) */}
               <img
-                src={afterDisplayUrl}
+                src={effectiveAfterUrl}
                 alt="Cutout result"
+                style={cutoutShadowStyle}
                 className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block pointer-events-none"
                 crossOrigin="anonymous"
               />
@@ -264,7 +400,11 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               {/* Divider Handle Line */}
               <div
                 className="slider-handle-area absolute top-0 bottom-0 z-10 flex flex-col items-center justify-center cursor-ew-resize select-none"
-                style={{ left: `${sliderPos}%`, transform: 'translateX(-50%)' }}
+                style={{
+                  left: `${sliderPos}%`,
+                  transform: 'translateX(-50%)',
+                  touchAction: 'none',
+                }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   setIsDragging(true);
@@ -316,10 +456,14 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-indigo-600 bg-white/80 px-2.5 py-1 rounded-md mb-2 shadow-xs">
                 Background Removed
               </span>
-              <div className="shadow-xl rounded-xl overflow-hidden max-h-[220px] sm:max-h-[500px]">
+              <div
+                className="shadow-xl rounded-xl overflow-hidden max-h-[220px] sm:max-h-[500px] transition-colors duration-150"
+                style={hoverBgStyle}
+              >
                 <img
-                  src={afterDisplayUrl}
+                  src={effectiveAfterUrl}
                   alt="Cutout Result"
+                  style={cutoutShadowStyle}
                   className="max-h-[200px] sm:max-h-[480px] w-auto object-contain block pointer-events-none"
                   crossOrigin="anonymous"
                 />
@@ -338,10 +482,14 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               transition: isPanning ? 'none' : 'transform 0.1s ease-out',
             }}
           >
-            <div className="shadow-2xl rounded-xl overflow-hidden">
+            <div
+              className="shadow-2xl rounded-xl overflow-hidden transition-colors duration-150"
+              style={hoverBgStyle}
+            >
               <img
-                src={afterDisplayUrl}
+                src={effectiveAfterUrl}
                 alt="Cutout only"
+                style={cutoutShadowStyle}
                 className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block pointer-events-none"
                 crossOrigin="anonymous"
               />
