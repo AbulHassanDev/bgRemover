@@ -111,9 +111,16 @@ async function startServer() {
       const defaultJpg = path.join(publicDir, "abulhassan_ceo.jpg");
       fs.writeFileSync(defaultJpg, buffer);
 
+      // Also sync to src/assets/images
+      const srcAssetsDir = path.join(process.cwd(), "src", "assets", "images");
+      if (fs.existsSync(srcAssetsDir)) {
+        fs.writeFileSync(path.join(srcAssetsDir, "abulhassan_ceo_real_1790059360386.jpg"), buffer);
+        fs.writeFileSync(path.join(srcAssetsDir, "abulhassan_ceo_1790058551484.jpg"), buffer);
+      }
+
       res.json({
         success: true,
-        url: `/images/abulhassan_ceo_original.png?t=${Date.now()}`,
+        url: `/images/abulhassan_ceo.jpg?t=${Date.now()}`,
       });
     } catch (err: any) {
       console.error("Error saving CEO photo:", err);
