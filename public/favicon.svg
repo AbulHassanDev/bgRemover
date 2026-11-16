@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="clearcut-bg" x1="4" y1="60" x2="60" y2="4" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="55%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#clearcut-bg)" />
+  <g stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 48L44 20" />
+    <path d="M35 20L44 29" />
+    <path d="M40 16L48 24" />
+    <path d="M22 14V22M18 18H26" />
+    <path d="M46 38V44M43 41H49" />
+    <path d="M18 32H21M32 45V48" />
+  </g>
+</svg>
