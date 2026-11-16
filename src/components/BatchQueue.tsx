@@ -107,7 +107,10 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
                 ...it,
                 status: 'completed',
                 progress: 100,
-                progressStage: 'Complete',
+                progressStage:
+                  result.engineUsed === 'fast-fallback'
+                    ? 'Complete (Edge Fallback)'
+                    : 'Complete',
                 processedUrl: result.processedUrl,
                 maskDataUrl: result.maskDataUrl,
                 dimensions: { width: w, height: h },
@@ -115,6 +118,12 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
             : it
         )
       );
+      if (result.engineUsed === 'fast-fallback') {
+        onToast(
+          `Neural model unavailable (${result.fallbackReason || 'offline'}); used high-res edge fallback for ${item.name}.`,
+          'info'
+        );
+      }
     } catch (err: any) {
       console.error('Batch item error:', err);
       setQueue((prev) =>

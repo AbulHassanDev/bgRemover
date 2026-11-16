@@ -113,10 +113,12 @@ export type AppTab = 'editor' | 'batch' | 'compare';
 
 export type EngineMode = 'neural-server' | 'wasm-neural' | 'fast-client' | 'cloud-api';
 export type CloudProvider = 'removebg' | 'falai' | 'huggingface';
+export type NeuralModelPrecision = 'high' | 'balanced';
 
 export interface ApiSettings {
   engineMode: EngineMode;
   cloudProvider: CloudProvider;
+  modelPrecision?: NeuralModelPrecision;
   removeBgApiKey: string;
   falAiApiKey: string;
   huggingFaceApiKey: string;

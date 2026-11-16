@@ -476,7 +476,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
   });
 
   // Caching proxy for runtime jsDelivr ESM modules (@imgly/background-removal & onnxruntime-web)
-  const cdnEsmCache = new Map<string, { data: string; contentType: string }>();
+  const cdnEsmCache = new Map<string, { data: Buffer | string; contentType: string }>();
   app.get("/api/cdn/jsdelivr/*", async (req, res) => {
     try {
       const subPath = req.params[0] || "";
@@ -488,6 +488,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
       if (cdnEsmCache.has(subPath)) {
         const cached = cdnEsmCache.get(subPath)!;
         res.setHeader("Content-Type", cached.contentType);
+        res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         res.send(cached.data);
         return;
@@ -500,16 +501,32 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
       }
 
       const contentType = upstream.headers.get("content-type") || "application/javascript; charset=utf-8";
-      let text = await upstream.text();
-      // Rewrite root-relative jsDelivr /npm/... imports so they resolve cleanly via same-origin proxy
-      text = text
-        .replace(/(["'])\/npm\//g, "$1/api/cdn/jsdelivr/npm/")
-        .replace(/(["'])\/gh\//g, "$1/api/cdn/jsdelivr/gh/");
+      const isBinary =
+        subPath.endsWith(".wasm") ||
+        contentType.includes("application/wasm") ||
+        contentType.includes("application/octet-stream");
 
-      cdnEsmCache.set(subPath, { data: text, contentType });
+      let payload: Buffer | string;
+      if (isBinary) {
+        payload = Buffer.from(await upstream.arrayBuffer());
+      } else {
+        let text = await upstream.text();
+        // Rewrite root-relative jsDelivr /npm/... imports so they resolve cleanly via same-origin proxy
+        text = text
+          .replace(/(["'])\/npm\//g, "$1/api/cdn/jsdelivr/npm/")
+          .replace(/(["'])\/gh\//g, "$1/api/cdn/jsdelivr/gh/");
+        payload = text;
+      }
+
+      if (cdnEsmCache.size >= 60) {
+        const oldestKey = cdnEsmCache.keys().next().value;
+        if (oldestKey) cdnEsmCache.delete(oldestKey);
+      }
+      cdnEsmCache.set(subPath, { data: payload, contentType });
       res.setHeader("Content-Type", contentType);
+      res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      res.send(text);
+      res.send(payload);
     } catch (err: any) {
       console.error("CDN ESM proxy error:", err);
       res.status(502).send("Failed to proxy ESM module");
@@ -524,6 +541,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
       if (imglyAssetCache.has(subPath)) {
         const cached = imglyAssetCache.get(subPath)!;
         res.setHeader("Content-Type", cached.contentType);
+        res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         res.send(cached.data);
         return;
@@ -540,12 +558,17 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
       const arrayBuffer = await upstream.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // Cache files up to 20MB in memory
-      if (buffer.length < 20 * 1024 * 1024) {
+      // Cache chunks up to 25MB in memory (with bounded LRU cap)
+      if (buffer.length < 25 * 1024 * 1024) {
+        if (imglyAssetCache.size >= 90) {
+          const oldestKey = imglyAssetCache.keys().next().value;
+          if (oldestKey) imglyAssetCache.delete(oldestKey);
+        }
         imglyAssetCache.set(subPath, { data: buffer, contentType });
       }
 
       res.setHeader("Content-Type", contentType);
+      res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       res.send(buffer);
     } catch (err: any) {

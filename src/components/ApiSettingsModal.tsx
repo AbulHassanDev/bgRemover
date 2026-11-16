@@ -166,7 +166,7 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
                 <div>
                   <div className="text-xs font-bold text-slate-900">Turbo Edge Fill</div>
                   <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-                    Fast corner flood & Sobel edge boundary segmentation.
+                    High-res geodesic border &amp; guided edge segmentation (offline).
                   </div>
                 </div>
                 <div className="mt-2 text-[9px] font-semibold text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded inline-block">
@@ -206,6 +206,69 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Neural Precision Selector */}
+          {(localSettings.engineMode === 'neural-server' ||
+            localSettings.engineMode === 'wasm-neural') && (
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                  Neural Precision & Edge Quality
+                </span>
+                <span className="text-[10px] font-medium text-slate-500">
+                  Auto-cached in browser
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLocalSettings((p) => ({ ...p, modelPrecision: 'high' }))
+                  }
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    (localSettings.modelPrecision || 'high') === 'high'
+                      ? 'border-indigo-600 bg-white ring-2 ring-indigo-200'
+                      : 'border-slate-200 bg-white/70 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      Studio HD (FP16)
+                    </span>
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                      Best Edges
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Half-precision ISNet weights + de-halo edge matting (~88 MB).
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLocalSettings((p) => ({ ...p, modelPrecision: 'balanced' }))
+                  }
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    localSettings.modelPrecision === 'balanced'
+                      ? 'border-indigo-600 bg-white ring-2 ring-indigo-200'
+                      : 'border-slate-200 bg-white/70 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      Balanced (Q8)
+                    </span>
+                    <span className="text-[9px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">
+                      2x Faster
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Compact quantized ISNet weights for low-bandwidth devices (~44 MB).
+                  </p>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Cloud API Configuration Section */}
           {localSettings.engineMode === 'cloud-api' && (

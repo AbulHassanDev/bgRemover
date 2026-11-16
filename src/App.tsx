@@ -92,6 +92,9 @@ export default function App() {
         if (!parsed.engineMode || parsed.engineMode === 'fast-client') {
           parsed.engineMode = 'neural-server';
         }
+        if (!parsed.modelPrecision) {
+          parsed.modelPrecision = 'high';
+        }
         return parsed;
       }
     } catch (e) {
@@ -100,6 +103,7 @@ export default function App() {
     return {
       engineMode: 'neural-server',
       cloudProvider: 'removebg',
+      modelPrecision: 'high',
       removeBgApiKey: '',
       falAiApiKey: '',
       huggingFaceApiKey: '',
@@ -237,7 +241,14 @@ export default function App() {
       );
 
       initHistory(result.processedUrl, result.maskDataUrl, bgSettings, url, { width: result.width, height: result.height });
-      addToast('Background removed successfully!', 'success');
+      if (result.engineUsed === 'fast-fallback') {
+        addToast(
+          `Neural model unavailable (${result.fallbackReason || 'offline'}); used high-res geodesic edge fallback.`,
+          'info'
+        );
+      } else {
+        addToast('Background removed successfully!', 'success');
+      }
     } catch (err: any) {
       console.error('Processing error:', err);
       setCurrentImage((prev) =>

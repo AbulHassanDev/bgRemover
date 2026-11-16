@@ -110,15 +110,299 @@ export async function imageToBase64(imgOrUrl: HTMLImageElement | string): Promis
   return canvas.toDataURL('image/png');
 }
 
+export interface RemovalResult {
+  processedUrl: string;
+  maskDataUrl: string;
+  width: number;
+  height: number;
+  engineUsed?: 'cloud-api' | 'neural-wasm' | 'fast-fallback' | 'fast-client';
+  fallbackReason?: string;
+}
+
+/**
+ * Helper: render an HTMLImageElement to a bounded-resolution ImageData / RGBA buffer
+ */
+function getOriginalImageData(img: HTMLImageElement): {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+} {
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, width, height);
+  return {
+    width,
+    height,
+    data: ctx.getImageData(0, 0, width, height).data,
+  };
+}
+
+/**
+ * Bilinearly resample a grayscale alpha map (0..1 Float32Array) from srcW x srcH to dstW x dstH
+ */
+function resampleAlphaBilinear(
+  srcAlpha: Float32Array,
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number
+): Float32Array {
+  if (srcW === dstW && srcH === dstH) {
+    return srcAlpha;
+  }
+  const out = new Float32Array(dstW * dstH);
+  const scaleX = srcW / dstW;
+  const scaleY = srcH / dstH;
+
+  for (let y = 0; y < dstH; y++) {
+    const sy = Math.max(0, Math.min(srcH - 1.0001, (y + 0.5) * scaleY - 0.5));
+    const y0 = Math.floor(sy);
+    const y1 = Math.min(srcH - 1, y0 + 1);
+    const fy = sy - y0;
+    const fy1 = 1 - fy;
+
+    for (let x = 0; x < dstW; x++) {
+      const sx = Math.max(0, Math.min(srcW - 1.0001, (x + 0.5) * scaleX - 0.5));
+      const x0 = Math.floor(sx);
+      const x1 = Math.min(srcW - 1, x0 + 1);
+      const fx = sx - x0;
+      const fx1 = 1 - fx;
+
+      const a00 = srcAlpha[y0 * srcW + x0];
+      const a10 = srcAlpha[y0 * srcW + x1];
+      const a01 = srcAlpha[y1 * srcW + x0];
+      const a11 = srcAlpha[y1 * srcW + x1];
+
+      out[y * dstW + x] =
+        (a00 * fx1 + a10 * fx) * fy1 + (a01 * fx1 + a11 * fx) * fy;
+    }
+  }
+  return out;
+}
+
+/**
+ * Studio-grade cutout refiner:
+ * 1. Cleans faint background alpha haze & isolated micro-speckles while preserving fine hair strands
+ * 2. Applies narrow-band joint RGB-guided edge snapping so upscaled neural mattes hug sharp full-res contours
+ * 3. Performs foreground color decontamination (de-halo / de-fringe) on semi-transparent edges
+ *    to remove white/colored halos on dark hair, blazers, hijabs, and product silhouettes
+ */
+async function refineCutoutWithOriginal(
+  origImg: HTMLImageElement,
+  alphaMap: Float32Array,
+  alphaW: number,
+  alphaH: number,
+  options: { guidedWeight?: number; defringeStrength?: number } = {}
+): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+  const { width: origW, height: origH, data: origPx } = getOriginalImageData(origImg);
+  const guidedWeight = options.guidedWeight ?? 0.28;
+  const defringeStrength = options.defringeStrength ?? 0.92;
+
+  const fullAlpha = resampleAlphaBilinear(alphaMap, alphaW, alphaH, origW, origH);
+  const cleanedAlpha = new Float32Array(origW * origH);
+
+  // Pass 1: Alpha hygiene + isolated noise dust suppression
+  for (let y = 0; y < origH; y++) {
+    const rowOff = y * origW;
+    for (let x = 0; x < origW; x++) {
+      const idx = rowOff + x;
+      let a = fullAlpha[idx];
+      if (a <= 0.03) {
+        cleanedAlpha[idx] = 0;
+        continue;
+      }
+      if (a >= 0.965) {
+        cleanedAlpha[idx] = 1;
+        continue;
+      }
+      // Suppress isolated faint haze dots (< 0.14) surrounded by empty space
+      if (a < 0.14 && x > 0 && x < origW - 1 && y > 0 && y < origH - 1) {
+        const nbrAvg =
+          (fullAlpha[idx - 1] +
+            fullAlpha[idx + 1] +
+            fullAlpha[idx - origW] +
+            fullAlpha[idx + origW]) *
+          0.25;
+        if (nbrAvg < 0.065) {
+          a *= nbrAvg / 0.065;
+          if (a < 0.025) a = 0;
+        }
+      }
+      cleanedAlpha[idx] = a;
+    }
+  }
+
+  // Pass 2: Narrow-band joint color-guided edge alignment
+  const refinedAlpha = new Float32Array(cleanedAlpha);
+  const invTwoSigmaSq = 1 / (2 * 26 * 26);
+
+  if (guidedWeight > 0) {
+    for (let y = 1; y < origH - 1; y++) {
+      const rowOff = y * origW;
+      for (let x = 1; x < origW - 1; x++) {
+        const idx = rowOff + x;
+        const aC = cleanedAlpha[idx];
+        // Only refine transition boundary pixels
+        if (aC <= 0.015 || aC >= 0.985) continue;
+
+        const pC = idx * 4;
+        const rC = origPx[pC];
+        const gC = origPx[pC + 1];
+        const bC = origPx[pC + 2];
+
+        let wSum = 0;
+        let aSum = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const nRow = (y + dy) * origW;
+          for (let dx = -1; dx <= 1; dx++) {
+            const nIdx = nRow + (x + dx);
+            const np = nIdx * 4;
+            const dr = origPx[np] - rC;
+            const dg = origPx[np + 1] - gC;
+            const db = origPx[np + 2] - bC;
+            const distSq = dr * dr + dg * dg + db * db;
+            const spatial = dx === 0 && dy === 0 ? 1.5 : dx === 0 || dy === 0 ? 1.0 : 0.7;
+            const w = spatial * Math.exp(-distSq * invTwoSigmaSq);
+            wSum += w;
+            aSum += w * cleanedAlpha[nIdx];
+          }
+        }
+
+        if (wSum > 0) {
+          const guided = aSum / wSum;
+          if (Math.abs(guided - aC) < 0.42) {
+            refinedAlpha[idx] = aC * (1 - guidedWeight) + guided * guidedWeight;
+          }
+        }
+      }
+    }
+  }
+
+  // Pass 3: Build output RGBA with Foreground Color Decontamination (De-Halo) + Alpha Mask Canvas
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = origW;
+  outCanvas.height = origH;
+  const outCtx = outCanvas.getContext('2d')!;
+  const outImgData = outCtx.createImageData(origW, origH);
+  const outPx = outImgData.data;
+
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = origW;
+  maskCanvas.height = origH;
+  const maskCtx = maskCanvas.getContext('2d')!;
+  const maskImgData = maskCtx.createImageData(origW, origH);
+  const maskPx = maskImgData.data;
+
+  // Search offsets ordered by proximity (radii 1..4)
+  const searchOffsets: Array<[number, number, number]> = [];
+  for (let dy = -4; dy <= 4; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const d2 = dx * dx + dy * dy;
+      if (d2 <= 18) {
+        searchOffsets.push([dx, dy, 1 / (1 + Math.sqrt(d2))]);
+      }
+    }
+  }
+
+  for (let y = 0; y < origH; y++) {
+    const rowOff = y * origW;
+    for (let x = 0; x < origW; x++) {
+      const idx = rowOff + x;
+      const pIdx = idx * 4;
+      const origA = origPx[pIdx + 3] / 255;
+      const a = Math.max(0, Math.min(1, refinedAlpha[idx] * origA));
+      const aByte = Math.round(a * 255);
+
+      maskPx[pIdx] = aByte;
+      maskPx[pIdx + 1] = aByte;
+      maskPx[pIdx + 2] = aByte;
+      maskPx[pIdx + 3] = 255;
+
+      if (aByte === 0) {
+        outPx[pIdx] = 0;
+        outPx[pIdx + 1] = 0;
+        outPx[pIdx + 2] = 0;
+        outPx[pIdx + 3] = 0;
+        continue;
+      }
+
+      let r = origPx[pIdx];
+      let g = origPx[pIdx + 1];
+      let b = origPx[pIdx + 2];
+
+      // Decontaminate semi-transparent edge pixels (removes bright/colored background halos)
+      if (defringeStrength > 0 && aByte > 4 && aByte < 244) {
+        let fgR = 0;
+        let fgG = 0;
+        let fgB = 0;
+        let fgW = 0;
+
+        for (let k = 0; k < searchOffsets.length; k++) {
+          const [dx, dy, proxW] = searchOffsets[k];
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= origW || ny < 0 || ny >= origH) continue;
+          const nIdx = ny * origW + nx;
+          const na = refinedAlpha[nIdx];
+          if (na >= 0.92) {
+            const np = nIdx * 4;
+            const w = proxW * na;
+            fgR += origPx[np] * w;
+            fgG += origPx[np + 1] * w;
+            fgB += origPx[np + 2] * w;
+            fgW += w;
+          }
+        }
+
+        if (fgW > 0) {
+          fgR /= fgW;
+          fgG /= fgW;
+          fgB /= fgW;
+          // Higher defringe weight near lower alpha where background bleed is strongest
+          const blend = Math.min(0.95, defringeStrength * Math.pow(1 - a, 0.65));
+          r = Math.round(r * (1 - blend) + fgR * blend);
+          g = Math.round(g * (1 - blend) + fgG * blend);
+          b = Math.round(b * (1 - blend) + fgB * blend);
+        }
+      }
+
+      outPx[pIdx] = r;
+      outPx[pIdx + 1] = g;
+      outPx[pIdx + 2] = b;
+      outPx[pIdx + 3] = aByte;
+    }
+  }
+
+  outCtx.putImageData(outImgData, 0, 0);
+  maskCtx.putImageData(maskImgData, 0, 0);
+
+  const processedBlob = await canvasToBlob(outCanvas, 'image/png');
+  const processedUrl = URL.createObjectURL(processedBlob);
+  const maskDataUrl = maskCanvas.toDataURL('image/png');
+
+  return {
+    processedUrl,
+    maskDataUrl,
+    width: origW,
+    height: origH,
+  };
+}
+
 /**
  * High-Precision Server / Hybrid AI Neural Background Removal (ISNet deep learning model).
- * Uses configured server provider if available, otherwise executes the exact same ISNet
+ * Uses configured server provider if available, otherwise executes ISNet
  * neural segmentation directly on-device via runtime-loaded WebAssembly.
  */
 export async function removeBackgroundServer(
   img: HTMLImageElement,
-  onProgress?: (percent: number, stage: string) => void
-): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+  onProgress?: (percent: number, stage: string) => void,
+  apiSettings?: ApiSettings
+): Promise<RemovalResult> {
   const origW = img.naturalWidth || img.width;
   const origH = img.naturalHeight || img.height;
 
@@ -132,7 +416,7 @@ export async function removeBackgroundServer(
       body: JSON.stringify({ imageBase64: base64 }),
     });
 
-    if (res.ok) {
+    if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
       const data = await res.json();
       if (data.success && data.resultBase64) {
         onProgress?.(85, 'Extracting alpha mask & perfecting fine edges...');
@@ -144,206 +428,249 @@ export async function removeBackgroundServer(
           maskDataUrl,
           width: origW,
           height: origH,
+          engineUsed: 'cloud-api',
         };
       }
     }
   } catch {
-    // Static host or offline — fall through seamlessly to client neural WASM
+    // Static host or offline — fall through cleanly to client neural WASM
   }
 
-  return await removeBackgroundNeuralWasm(img, onProgress);
+  return await removeBackgroundNeuralWasm(img, onProgress, apiSettings);
 }
 
 /**
- * Intelligent client-side edge-preserving flood fill for fast/offline preview.
- * Strictly avoids punching holes inside salient subjects.
+ * High-Resolution Geodesic Edge-Barrier Client Segmenter (Turbo / Offline fallback).
+ * Uses multi-border background color modeling, edge-weighted priority-queue propagation,
+ * interior hole closure (protecting foreheads, eyes, shirts), and bilinear guided alpha refinement.
  */
 export async function removeBackgroundFastClient(
   img: HTMLImageElement,
   onProgress?: (percent: number, stage: string) => void
-): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+): Promise<RemovalResult> {
   const origW = img.naturalWidth || img.width;
   const origH = img.naturalHeight || img.height;
 
-  onProgress?.(20, 'Analyzing image composition & edges...');
-  await new Promise((r) => setTimeout(r, 20));
+  onProgress?.(20, 'Analyzing high-resolution contours & borders...');
+  await new Promise((r) => setTimeout(r, 15));
 
-  const maxDim = 400;
+  const maxDim = 960;
   const scale = Math.min(1, maxDim / Math.max(origW, origH));
-  const workW = Math.max(30, Math.round(origW * scale));
-  const workH = Math.max(30, Math.round(origH * scale));
+  const workW = Math.max(48, Math.round(origW * scale));
+  const workH = Math.max(48, Math.round(origH * scale));
+  const totalPx = workW * workH;
 
   const workCanvas = document.createElement('canvas');
   workCanvas.width = workW;
   workCanvas.height = workH;
   const workCtx = workCanvas.getContext('2d', { willReadFrequently: true })!;
+  workCtx.imageSmoothingEnabled = true;
+  workCtx.imageSmoothingQuality = 'high';
   workCtx.drawImage(img, 0, 0, workW, workH);
 
-  const srcData = workCtx.getImageData(0, 0, workW, workH);
-  const px = srcData.data;
+  const px = workCtx.getImageData(0, 0, workW, workH).data;
 
-  onProgress?.(45, 'Detecting background boundaries...');
-  await new Promise((r) => setTimeout(r, 20));
+  onProgress?.(40, 'Building edge-barrier & border saliency map...');
+  await new Promise((r) => setTimeout(r, 15));
 
-  // Compute Sobel gradient magnitude for edge detection
-  const edges = new Float32Array(workW * workH);
+  // 1. Compute perceptual Sobel edge magnitude (0..255)
+  const edges = new Float32Array(totalPx);
   for (let y = 1; y < workH - 1; y++) {
+    const row = y * workW;
     for (let x = 1; x < workW - 1; x++) {
-      const idx = (y * workW + x) * 4;
-      const idxLeft = (y * workW + (x - 1)) * 4;
-      const idxRight = (y * workW + (x + 1)) * 4;
-      const idxUp = ((y - 1) * workW + x) * 4;
-      const idxDown = ((y + 1) * workW + x) * 4;
+      const idxL = (row + x - 1) * 4;
+      const idxR = (row + x + 1) * 4;
+      const idxU = ((y - 1) * workW + x) * 4;
+      const idxD = ((y + 1) * workW + x) * 4;
 
       const gx =
-        Math.abs(px[idxRight] - px[idxLeft]) +
-        Math.abs(px[idxRight + 1] - px[idxLeft + 1]) +
-        Math.abs(px[idxRight + 2] - px[idxLeft + 2]);
+        Math.abs(px[idxR] - px[idxL]) * 0.3 +
+        Math.abs(px[idxR + 1] - px[idxL + 1]) * 0.59 +
+        Math.abs(px[idxR + 2] - px[idxL + 2]) * 0.11;
       const gy =
-        Math.abs(px[idxDown] - px[idxUp]) +
-        Math.abs(px[idxDown + 1] - px[idxUp + 1]) +
-        Math.abs(px[idxDown + 2] - px[idxUp + 2]);
+        Math.abs(px[idxD] - px[idxU]) * 0.3 +
+        Math.abs(px[idxD + 1] - px[idxU + 1]) * 0.59 +
+        Math.abs(px[idxD + 2] - px[idxU + 2]) * 0.11;
 
-      edges[y * workW + x] = Math.min(255, (gx + gy) / 3);
+      edges[row + x] = Math.min(255, Math.sqrt(gx * gx + gy * gy) * 1.35);
     }
   }
 
-  // Sample corner colors (top-left, top-right, bottom-left, bottom-right)
-  const cornerCoords = [
-    [2, 2],
-    [workW - 3, 2],
-    [2, workH - 3],
-    [workW - 3, workH - 3],
-  ];
+  // 2. Sample perimeter seeds (top, upper-left, upper-right, and safe lower outer corners)
+  const seedIndices: number[] = [];
+  const stepX = Math.max(2, Math.floor(workW / 48));
+  const stepY = Math.max(2, Math.floor(workH / 48));
 
-  const mask = new Float32Array(workW * workH).fill(1.0);
-  const visited = new Uint8Array(workW * workH);
-  const queue: number[] = [];
-
-  // Corner background seeds
-  for (const [cx, cy] of cornerCoords) {
-    const cIdx = (cy * workW + cx) * 4;
-    const r0 = px[cIdx];
-    const g0 = px[cIdx + 1];
-    const b0 = px[cIdx + 2];
-
-    const startPos = cy * workW + cx;
-    if (!visited[startPos]) {
-      queue.push(startPos);
-      visited[startPos] = 1;
-      mask[startPos] = 0;
+  for (let x = 2; x < workW - 2; x += stepX) {
+    seedIndices.push(2 * workW + x); // top edge
+    // Only seed bottom edge in outer 16% corners to avoid cutting off torso/subject base
+    if (x < workW * 0.16 || x > workW * 0.84) {
+      seedIndices.push((workH - 3) * workW + x);
     }
+  }
+  for (let y = 2; y < workH - 2; y += stepY) {
+    // Side edges (skip lower-side where shoulders often meet frame unless low-edge uniform)
+    const idxL = y * workW + 2;
+    const idxR = y * workW + (workW - 3);
+    if (y < workH * 0.72 || edges[idxL] < 10) seedIndices.push(idxL);
+    if (y < workH * 0.72 || edges[idxR] < 10) seedIndices.push(idxR);
+  }
 
-    // Flood fill only through non-edges with similar color
-    const colorTolerance = 45;
-    while (queue.length > 0) {
-      const pos = queue.pop()!;
-      const qx = pos % workW;
-      const qy = Math.floor(pos / workW);
-      const qIdx = pos * 4;
+  // 3. Bucketed Priority-Queue Geodesic Distance from border seeds (256 cost levels, O(N))
+  const MAX_COST = 255;
+  const dist = new Uint16Array(totalPx).fill(65535);
+  const seedRefR = new Uint8Array(totalPx);
+  const seedRefG = new Uint8Array(totalPx);
+  const seedRefB = new Uint8Array(totalPx);
+  const buckets: number[][] = Array.from({ length: MAX_COST + 1 }, () => []);
 
-      const neighbors = [
-        [qx + 1, qy],
-        [qx - 1, qy],
-        [qx, qy + 1],
-        [qx, qy - 1],
-      ];
+  for (const sIdx of seedIndices) {
+    if (edges[sIdx] > 28) continue; // skip seeds sitting right on a border object edge
+    const p = sIdx * 4;
+    dist[sIdx] = 0;
+    seedRefR[sIdx] = px[p];
+    seedRefG[sIdx] = px[p + 1];
+    seedRefB[sIdx] = px[p + 2];
+    buckets[0].push(sIdx);
+  }
 
-      for (const [nx, ny] of neighbors) {
+  // Ensure corner pixels are seeded if all perimeter seeds were edged
+  if (buckets[0].length === 0) {
+    const corners = [
+      2 * workW + 2,
+      2 * workW + (workW - 3),
+      (workH - 3) * workW + 2,
+      (workH - 3) * workW + (workW - 3),
+    ];
+    for (const sIdx of corners) {
+      const p = sIdx * 4;
+      dist[sIdx] = 0;
+      seedRefR[sIdx] = px[p];
+      seedRefG[sIdx] = px[p + 1];
+      seedRefB[sIdx] = px[p + 2];
+      buckets[0].push(sIdx);
+    }
+  }
+
+  const dx4 = [1, -1, 0, 0];
+  const dy4 = [0, 0, 1, -1];
+
+  onProgress?.(60, 'Tracing geodesic foreground boundaries...');
+  await new Promise((r) => setTimeout(r, 10));
+
+  for (let cost = 0; cost <= MAX_COST; cost++) {
+    const bucket = buckets[cost];
+    while (bucket.length > 0) {
+      const pos = bucket.pop()!;
+      if (dist[pos] < cost) continue;
+
+      const x = pos % workW;
+      const y = (pos - x) / workW;
+      const p4 = pos * 4;
+      const pr = px[p4];
+      const pg = px[p4 + 1];
+      const pb = px[p4 + 2];
+      const sr = seedRefR[pos];
+      const sg = seedRefG[pos];
+      const sb = seedRefB[pos];
+
+      for (let k = 0; k < 4; k++) {
+        const nx = x + dx4[k];
+        const ny = y + dy4[k];
         if (nx < 0 || nx >= workW || ny < 0 || ny >= workH) continue;
+
         const nPos = ny * workW + nx;
-        if (visited[nPos]) continue;
+        const np4 = nPos * 4;
 
-        // Stop at strong edges
-        if (edges[nPos] > 38) continue;
+        // Perceptual local diff + drift from origin seed + Sobel edge barrier
+        const dLocal =
+          Math.abs(px[np4] - pr) * 0.3 +
+          Math.abs(px[np4 + 1] - pg) * 0.59 +
+          Math.abs(px[np4 + 2] - pb) * 0.11;
+        const dSeed =
+          Math.abs(px[np4] - sr) * 0.3 +
+          Math.abs(px[np4 + 1] - sg) * 0.59 +
+          Math.abs(px[np4 + 2] - sb) * 0.11;
 
-        const nIdx = nPos * 4;
-        const dr = Math.abs(px[nIdx] - r0);
-        const dg = Math.abs(px[nIdx + 1] - g0);
-        const db = Math.abs(px[nIdx + 2] - b0);
+        const edgeVal = edges[nPos];
+        const edgeBarrier = edgeVal > 16 ? (edgeVal - 14) * 3.4 : edgeVal * 0.25;
+        const step = Math.round(0.4 + dLocal * 1.15 + dSeed * 0.32 + edgeBarrier);
+        const nextCost = Math.min(MAX_COST, cost + Math.max(1, step));
 
-        if (dr < colorTolerance && dg < colorTolerance && db < colorTolerance) {
-          visited[nPos] = 1;
-          mask[nPos] = 0;
-          queue.push(nPos);
+        if (nextCost < dist[nPos] && nextCost < MAX_COST) {
+          dist[nPos] = nextCost;
+          seedRefR[nPos] = sr;
+          seedRefG[nPos] = sg;
+          seedRefB[nPos] = sb;
+          buckets[nextCost].push(nPos);
         }
       }
     }
   }
 
-  // Smooth the mask
-  const smoothedMask = new Float32Array(workW * workH);
+  // 4. Convert geodesic distance into soft foreground probability & close interior holes
+  const bgReachable = new Uint8Array(totalPx);
+  const bgStack: number[] = [];
+  const bgThreshold = 78;
+
+  for (let x = 0; x < workW; x++) {
+    for (const y of [0, workH - 1]) {
+      const idx = y * workW + x;
+      if (dist[idx] <= bgThreshold && !bgReachable[idx]) {
+        bgReachable[idx] = 1;
+        bgStack.push(idx);
+      }
+    }
+  }
   for (let y = 0; y < workH; y++) {
-    for (let x = 0; x < workW; x++) {
-      let sum = 0;
-      let cnt = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= workH) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = x + dx;
-          if (nx < 0 || nx >= workW) continue;
-          sum += mask[ny * workW + nx];
-          cnt++;
-        }
+    for (const x of [0, workW - 1]) {
+      const idx = y * workW + x;
+      if (dist[idx] <= bgThreshold && !bgReachable[idx]) {
+        bgReachable[idx] = 1;
+        bgStack.push(idx);
       }
-      smoothedMask[y * workW + x] = sum / cnt;
     }
   }
 
-  onProgress?.(80, 'Rendering high-resolution cutout...');
-  await new Promise((r) => setTimeout(r, 20));
-
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width = origW;
-  outCanvas.height = origH;
-  const outCtx = outCanvas.getContext('2d')!;
-  outCtx.drawImage(img, 0, 0);
-
-  const outData = outCtx.getImageData(0, 0, origW, origH);
-  const outPx = outData.data;
-
-  const maskCanvas = document.createElement('canvas');
-  maskCanvas.width = origW;
-  maskCanvas.height = origH;
-  const maskCtx = maskCanvas.getContext('2d')!;
-  const maskData = maskCtx.createImageData(origW, origH);
-  const maskPx = maskData.data;
-
-  const scaleX = workW / origW;
-  const scaleY = workH / origH;
-
-  for (let y = 0; y < origH; y++) {
-    const wy = Math.min(workH - 1, Math.floor(y * scaleY));
-    for (let x = 0; x < origW; x++) {
-      const wx = Math.min(workW - 1, Math.floor(x * scaleX));
-      const a = smoothedMask[wy * workW + wx];
-      const pIdx = (y * origW + x) * 4;
-
-      outPx[pIdx + 3] = Math.round(outPx[pIdx + 3] * a);
-
-      const mVal = Math.round(a * 255);
-      maskPx[pIdx] = mVal;
-      maskPx[pIdx + 1] = mVal;
-      maskPx[pIdx + 2] = mVal;
-      maskPx[pIdx + 3] = 255;
+  while (bgStack.length > 0) {
+    const pos = bgStack.pop()!;
+    const x = pos % workW;
+    const y = (pos - x) / workW;
+    for (let k = 0; k < 4; k++) {
+      const nx = x + dx4[k];
+      const ny = y + dy4[k];
+      if (nx < 0 || nx >= workW || ny < 0 || ny >= workH) continue;
+      const nPos = ny * workW + nx;
+      if (!bgReachable[nPos] && dist[nPos] <= bgThreshold) {
+        bgReachable[nPos] = 1;
+        bgStack.push(nPos);
+      }
     }
   }
 
-  outCtx.putImageData(outData, 0, 0);
-  maskCtx.putImageData(maskData, 0, 0);
+  const workAlpha = new Float32Array(totalPx);
+  for (let i = 0; i < totalPx; i++) {
+    if (!bgReachable[i]) {
+      // Interior hole protection: keep enclosed regions fully foreground
+      workAlpha[i] = 1.0;
+    } else {
+      const d = dist[i];
+      if (d <= 44) workAlpha[i] = 0.0;
+      else if (d >= bgThreshold) workAlpha[i] = 1.0;
+      else workAlpha[i] = (d - 44) / (bgThreshold - 44);
+    }
+  }
 
-  const processedBlob = await canvasToBlob(outCanvas, 'image/png');
-  const processedUrl = URL.createObjectURL(processedBlob);
-  const maskDataUrl = maskCanvas.toDataURL('image/png');
+  onProgress?.(85, 'Applying bilinear guided edge refinement...');
+  const refined = await refineCutoutWithOriginal(img, workAlpha, workW, workH, {
+    guidedWeight: 0.45,
+    defringeStrength: 0.85,
+  });
 
   onProgress?.(100, 'Complete');
-
   return {
-    processedUrl,
-    maskDataUrl,
-    width: origW,
-    height: origH,
+    ...refined,
+    engineUsed: 'fast-client',
   };
 }
 
@@ -354,7 +681,13 @@ async function isExpressProxyAvailable(): Promise<boolean> {
   if (cachedBackendAlive !== null) return cachedBackendAlive;
   try {
     const res = await fetch('/api/health', { method: 'GET' });
-    cachedBackendAlive = res.ok;
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('application/json')) {
+      cachedBackendAlive = false;
+      return false;
+    }
+    const data = await res.json().catch(() => null);
+    cachedBackendAlive = Boolean(data && data.status === 'ok');
   } catch {
     cachedBackendAlive = false;
   }
@@ -369,6 +702,7 @@ async function loadImglyRuntime(): Promise<any> {
     ? [
         `${window.location.origin}/api/cdn/jsdelivr/npm/@imgly/background-removal@1.7.0/+esm`,
         'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
+        'https://esm.sh/@imgly/background-removal@1.7.0?bundle',
       ]
     : [
         'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
@@ -381,6 +715,7 @@ async function loadImglyRuntime(): Promise<any> {
       cachedImglyModule = await import(/* @vite-ignore */ url);
       return cachedImglyModule;
     } catch (err) {
+      console.warn(`Failed loading runtime from ${url}:`, err);
       lastErr = err;
     }
   }
@@ -388,17 +723,42 @@ async function loadImglyRuntime(): Promise<any> {
 }
 
 /**
- * Neural AI WebAssembly Background Removal via @imgly/background-removal
- * loaded dynamically by external CDN / proxy URL at runtime (zero bundle bloat).
+ * Extract normalized alpha channel (0..1 Float32Array) from an HTMLImageElement cutout
+ */
+function extractAlphaArrayFromImage(cutoutImg: HTMLImageElement): {
+  alpha: Float32Array;
+  width: number;
+  height: number;
+} {
+  const width = cutoutImg.naturalWidth || cutoutImg.width;
+  const height = cutoutImg.naturalHeight || cutoutImg.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(cutoutImg, 0, 0, width, height);
+  const px = ctx.getImageData(0, 0, width, height).data;
+  const alpha = new Float32Array(width * height);
+  for (let i = 0; i < alpha.length; i++) {
+    alpha[i] = px[i * 4 + 3] / 255;
+  }
+  return { alpha, width, height };
+}
+
+/**
+ * Neural AI WebAssembly Background Removal via @imgly/background-removal (ISNet FP16 / Q8)
+ * loaded dynamically by external CDN / proxy URL at runtime (zero bundle bloat),
+ * followed by full-resolution guided edge alignment and foreground color decontamination.
  */
 export async function removeBackgroundNeuralWasm(
   img: HTMLImageElement,
-  onProgress?: (percent: number, stage: string) => void
-): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+  onProgress?: (percent: number, stage: string) => void,
+  apiSettings?: ApiSettings
+): Promise<RemovalResult> {
   const origW = img.naturalWidth || img.width;
   const origH = img.naturalHeight || img.height;
 
-  onProgress?.(10, 'Initializing Neural AI model weights...');
+  onProgress?.(8, 'Initializing Neural AI runtime...');
 
   try {
     const [imgly, hasProxy] = await Promise.all([
@@ -406,63 +766,142 @@ export async function removeBackgroundNeuralWasm(
       isExpressProxyAvailable(),
     ]);
 
-    onProgress?.(25, 'Loading quantized ISNet neural weights...');
+    // Prepare an inference-sized PNG blob (<= 2048px preserves full ISNet 1024px detail while preventing OOM)
+    const inferMaxDim = 2048;
+    const inferScale = Math.min(1, inferMaxDim / Math.max(origW, origH));
+    const inferW = Math.max(1, Math.round(origW * inferScale));
+    const inferH = Math.max(1, Math.round(origH * inferScale));
 
-    const canvas = document.createElement('canvas');
-    canvas.width = origW;
-    canvas.height = origH;
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, 0, 0);
-    const inputBlob = await canvasToBlob(canvas, 'image/png');
-
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('WASM model download timeout. Switching to Fast Client engine.')), 45000);
-    });
+    const inferCanvas = document.createElement('canvas');
+    inferCanvas.width = inferW;
+    inferCanvas.height = inferH;
+    const inferCtx = inferCanvas.getContext('2d')!;
+    inferCtx.imageSmoothingEnabled = true;
+    inferCtx.imageSmoothingQuality = 'high';
+    inferCtx.drawImage(img, 0, 0, inferW, inferH);
+    const inputBlob = await canvasToBlob(inferCanvas, 'image/png');
 
     const publicPath = hasProxy
       ? `${window.location.origin}/api/imgly/`
       : 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
 
-    const removalPromise = imgly.removeBackground(inputBlob, {
-      publicPath,
-      model: 'isnet_quint8',
-      rescale: true,
-      progress: (key: string, current: number, total: number) => {
-        if (total > 0) {
-          const pct = Math.min(95, Math.max(25, Math.round((current / total) * 100)));
-          const stageName = key.includes('fetch')
-            ? `Downloading AI weights (${pct}%)...`
-            : key.includes('compute')
-            ? `Neural segmentation (${pct}%)...`
-            : `Processing AI layers (${pct}%)...`;
-          onProgress?.(pct, stageName);
-        }
-      },
-      output: {
-        format: 'image/png',
-        quality: 0.95,
-      },
+    const precision = apiSettings?.modelPrecision || 'high';
+    const modelsToTry: Array<'isnet_fp16' | 'isnet_quint8'> =
+      precision === 'balanced' ? ['isnet_quint8'] : ['isnet_fp16', 'isnet_quint8'];
+
+    let resultBlob: Blob | null = null;
+    let lastNeuralError: unknown = null;
+
+    for (const modelName of modelsToTry) {
+      const modelLabel =
+        modelName === 'isnet_fp16' ? 'Studio HD ISNet (FP16)' : 'Fast ISNet (Q8)';
+      onProgress?.(18, `Loading ${modelLabel} neural weights...`);
+
+      let stallTimer: ReturnType<typeof setTimeout> | null = null;
+      let hardTimer: ReturnType<typeof setTimeout> | null = null;
+
+      try {
+        resultBlob = await new Promise<Blob>((resolve, reject) => {
+          const clearTimers = () => {
+            if (stallTimer) clearTimeout(stallTimer);
+            if (hardTimer) clearTimeout(hardTimer);
+          };
+
+          const resetStallTimer = () => {
+            if (stallTimer) clearTimeout(stallTimer);
+            stallTimer = setTimeout(() => {
+              clearTimers();
+              reject(new Error(`${modelLabel} stalled during download or inference.`));
+            }, 50000);
+          };
+
+          resetStallTimer();
+          hardTimer = setTimeout(() => {
+            clearTimers();
+            reject(new Error(`${modelLabel} exceeded 180s processing limit.`));
+          }, 180000);
+
+          imgly
+            .removeBackground(inputBlob, {
+              publicPath,
+              model: modelName,
+              device: 'cpu',
+              proxyToWorker: false,
+              rescale: true,
+              progress: (key: string, current: number, total: number) => {
+                resetStallTimer();
+                if (total > 0) {
+                  const pct = Math.min(90, Math.max(20, Math.round((current / total) * 88)));
+                  const stageName = key.includes('fetch')
+                    ? `Loading ${modelLabel} weights (${pct}%)...`
+                    : key.includes('compute')
+                    ? `Deep neural segmentation (${pct}%)...`
+                    : `Processing AI layers (${pct}%)...`;
+                  onProgress?.(pct, stageName);
+                }
+              },
+              output: {
+                format: 'image/png',
+                quality: 1.0,
+              },
+            })
+            .then((blob: Blob) => {
+              clearTimers();
+              resolve(blob);
+            })
+            .catch((err: unknown) => {
+              clearTimers();
+              reject(err);
+            });
+        });
+
+        if (resultBlob) break;
+      } catch (modelErr) {
+        lastNeuralError = modelErr;
+        console.warn(`${modelLabel} failed, checking next neural option:`, modelErr);
+      }
+    }
+
+    if (!resultBlob) {
+      throw lastNeuralError || new Error('Neural ISNet segmentation did not return output');
+    }
+
+    onProgress?.(92, 'De-haloing edges & refining alpha matte...');
+    const rawCutoutUrl = URL.createObjectURL(resultBlob);
+    let rawAlpha: Float32Array;
+    let alphaW: number;
+    let alphaH: number;
+    try {
+      const rawCutoutImg = await loadImage(rawCutoutUrl);
+      const extracted = extractAlphaArrayFromImage(rawCutoutImg);
+      rawAlpha = extracted.alpha;
+      alphaW = extracted.width;
+      alphaH = extracted.height;
+    } finally {
+      URL.revokeObjectURL(rawCutoutUrl);
+    }
+
+    const refined = await refineCutoutWithOriginal(img, rawAlpha, alphaW, alphaH, {
+      guidedWeight: 0.24,
+      defringeStrength: 0.94,
     });
-
-    const resultBlob = await Promise.race([removalPromise, timeoutPromise]);
-    onProgress?.(95, 'Extracting alpha mask & perfecting fine edges...');
-
-    const processedUrl = URL.createObjectURL(resultBlob);
-    const cutoutImg = await loadImage(processedUrl);
-    const maskDataUrl = await extractMaskFromCutout(cutoutImg);
 
     onProgress?.(100, 'Complete');
 
     return {
-      processedUrl,
-      maskDataUrl,
-      width: origW,
-      height: origH,
+      ...refined,
+      engineUsed: 'neural-wasm',
     };
   } catch (err: any) {
+    const reason = err?.message || 'Neural runtime unavailable';
     console.warn('Neural WASM model encountered an issue, falling back to Fast Client engine:', err);
-    onProgress?.(40, 'WASM offline fallback: Running fast client edge segmentation...');
-    return await removeBackgroundFastClient(img, onProgress);
+    onProgress?.(35, 'Neural offline fallback: Running high-res edge segmentation...');
+    const fallbackResult = await removeBackgroundFastClient(img, onProgress);
+    return {
+      ...fallbackResult,
+      engineUsed: 'fast-fallback',
+      fallbackReason: reason,
+    };
   }
 }
 
@@ -473,7 +912,7 @@ export async function removeBackgroundCloudApi(
   img: HTMLImageElement,
   apiSettings: ApiSettings,
   onProgress?: (percent: number, stage: string) => void
-): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+): Promise<RemovalResult> {
   const origW = img.naturalWidth || img.width;
   const origH = img.naturalHeight || img.height;
 
@@ -521,6 +960,7 @@ export async function removeBackgroundCloudApi(
     maskDataUrl,
     width: origW,
     height: origH,
+    engineUsed: 'cloud-api',
   };
 }
 
@@ -531,7 +971,7 @@ export async function removeBackgroundClient(
   imgOrBlob: HTMLImageElement | Blob | string,
   onProgress?: (percent: number, stage: string) => void,
   apiSettings?: ApiSettings
-): Promise<{ processedUrl: string; maskDataUrl: string; width: number; height: number }> {
+): Promise<RemovalResult> {
   let img: HTMLImageElement;
 
   if (typeof imgOrBlob === 'string') {
@@ -549,34 +989,22 @@ export async function removeBackgroundClient(
     try {
       return await removeBackgroundCloudApi(img, apiSettings, onProgress);
     } catch (err: any) {
-      console.warn('Cloud API failed, falling back to Server Neural engine:', err);
-      onProgress?.(30, `Cloud API notice: ${err.message}. Running AI Server engine...`);
-      return await removeBackgroundServer(img, onProgress);
+      console.warn('Cloud API failed, falling back to Neural AI engine:', err);
+      onProgress?.(30, `Cloud API notice: ${err.message}. Running Neural AI engine...`);
+      return await removeBackgroundServer(img, onProgress, apiSettings);
     }
   }
 
   if (mode === 'wasm-neural') {
-    try {
-      return await removeBackgroundNeuralWasm(img, onProgress);
-    } catch (err: any) {
-      console.warn('WASM engine failed, falling back to Server Neural engine:', err);
-      onProgress?.(30, 'WASM notice: Running Server AI engine...');
-      return await removeBackgroundServer(img, onProgress);
-    }
+    return await removeBackgroundNeuralWasm(img, onProgress, apiSettings);
   }
 
   if (mode === 'fast-client') {
     return await removeBackgroundFastClient(img, onProgress);
   }
 
-  // Default: AI Neural Server Engine (ISNet deep learning model)
-  try {
-    return await removeBackgroundServer(img, onProgress);
-  } catch (err: any) {
-    console.warn('Server Neural engine failed, attempting client WASM fallback:', err);
-    onProgress?.(30, 'Server notice: Running client-side neural model...');
-    return await removeBackgroundNeuralWasm(img, onProgress);
-  }
+  // Default: AI Neural Engine (Server Cloud Key if set, otherwise On-Device ISNet Neural WASM)
+  return await removeBackgroundServer(img, onProgress, apiSettings);
 }
 
 /**
