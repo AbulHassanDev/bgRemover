@@ -2,12 +2,14 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Upload, Clipboard, Sparkles, ShieldCheck, Zap } from 'lucide-react';
 import { SampleImage } from '../types';
 import { SAMPLE_IMAGES } from '../data/presets';
+import { SeoRouteConfig, SEO_ROUTES } from '../data/seoContent';
 
 interface HeroDropzoneProps {
   onFileSelected: (file: File) => void;
   onSampleSelected: (sample: SampleImage) => void;
   onError: (msg: string) => void;
   isLoading?: boolean;
+  seoRoute?: SeoRouteConfig;
 }
 
 export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
@@ -15,6 +17,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
   onSampleSelected,
   onError,
   isLoading = false,
+  seoRoute = SEO_ROUTES['/'],
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,16 +86,16 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
       <div className="text-center mb-6 sm:mb-8">
         <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold mb-2 sm:mb-3">
           <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Next-Gen Neural Edge Detection</span>
+          <span>{seoRoute.badge}</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-          Remove Image Backgrounds with{' '}
+          {seoRoute.h1Prefix}{' '}
           <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Precision Edge Hair Detail
+            {seoRoute.h1Highlight}
           </span>
         </h1>
         <p className="mt-2 sm:mt-2.5 text-xs sm:text-base text-slate-600 max-w-2xl mx-auto">
-          100% automatic subject segmentation. Delete backgrounds in seconds, refine fine hair & fur with manual brushes, and composite custom scenes.
+          {seoRoute.subtitle}
         </p>
       </div>
 
@@ -164,21 +167,28 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-3">
           {SAMPLE_IMAGES.map((sample) => (
             <button
               key={sample.id}
               id={`sample-btn-${sample.id}`}
               onClick={() => onSampleSelected(sample)}
               disabled={isLoading}
-              className="group relative flex flex-col items-start bg-white p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all text-left overflow-hidden cursor-pointer"
+              className={`group relative flex flex-col items-start bg-white p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all text-left overflow-hidden cursor-pointer ${
+                seoRoute.recommendedSampleId === sample.id
+                  ? 'border-blue-400 ring-2 ring-blue-100 shadow-sm'
+                  : 'border-slate-200 hover:border-indigo-400 hover:shadow-md'
+              }`}
             >
               <div className="w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 mb-1.5 sm:mb-2 relative">
                 <img
                   src={sample.thumbnail}
-                  alt={sample.title}
+                  alt={`${sample.title} — ${sample.category} background removal sample`}
+                  width={200}
+                  height={200}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
+                  decoding="async"
                   crossOrigin="anonymous"
                 />
                 <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 text-[9px] sm:text-[10px] font-bold bg-slate-900/80 backdrop-blur-xs text-white px-1.5 sm:px-2 py-0.5 rounded-full">

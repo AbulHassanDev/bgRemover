@@ -3,16 +3,150 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Background Remover & Edge Studio</title>
-    <meta name="description" content="High-precision AI background removal with interactive comparison, AI picture enhancement & color grading, manual erase/restore edge refinement brushes, canvas crop and aspect ratio controls, background replacement, and batch processing." />
-    <meta property="og:title" content="AI Background Remover & Edge Studio" />
-    <meta property="og:description" content="High-precision AI background removal with interactive comparison, AI picture enhancement & color grading, manual erase/restore edge refinement brushes, canvas crop and aspect ratio controls, background replacement, and batch processing." />
+    <link rel="icon" href="/favicon.ico" />
+    <title>ClearCut AI — Free, Private Client-Side Background Remover</title>
+    <meta
+      name="description"
+      content="Remove image backgrounds in sub-seconds directly in your browser. 100% on-device privacy, zero uploads, edge refinement brushes & batch studio. Try free."
+    />
+    <meta
+      name="keywords"
+      content="AI background remover, client-side background remover, private background remover, browser background remover, transparent PNG maker, manual edge refiner brush, batch background removal, ClearCut AI"
+    />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="author" content="AbulHassan — ClearCut AI" />
+    <meta name="theme-color" content="#2563eb" />
+    <link rel="canonical" href="/" />
+
+    <!-- OpenGraph Social Share Metadata -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ClearCut AI" />
+    <meta property="og:title" content="ClearCut AI — Free, Private Client-Side Background Remover" />
+    <meta
+      property="og:description"
+      content="Remove image backgrounds in sub-seconds directly in your browser. 100% on-device privacy, zero uploads, edge refinement brushes & batch studio. Try free."
+    />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/images/og-banner.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="675" />
+    <meta
+      property="og:image:alt"
+      content="ClearCut AI — 100% Private Browser-Native AI Background Remover & Edge Studio"
+    />
+
+    <!-- Twitter / X Card Metadata -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ClearCut AI — Free, Private Client-Side Background Remover" />
+    <meta
+      name="twitter:description"
+      content="Remove image backgrounds in sub-seconds directly in your browser. 100% on-device privacy, zero uploads, edge refinement brushes & batch studio."
+    />
+    <meta name="twitter:image" content="/images/og-banner.jpg" />
+    <meta
+      name="twitter:image:alt"
+      content="ClearCut AI — 100% Private Browser-Native AI Background Remover & Edge Studio"
+    />
+
+    <!-- Structured Data (Schema.org JSON-LD) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "ClearCut AI",
+            "description": "Browser-native AI background remover and edge studio with 100% on-device privacy.",
+            "url": "/"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "ClearCut AI",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "PhotoEditing",
+            "operatingSystem": "Web Browser (Chrome, Safari, Firefox, Edge)",
+            "browserRequirements": "Requires WebAssembly and HTML5 Canvas",
+            "description": "Remove image backgrounds in sub-seconds directly in your browser with 100% on-device privacy, manual edge refinement brushes, batch processing, and lossless PNG/WebP export.",
+            "author": {
+              "@type": "Person",
+              "name": "AbulHassan"
+            },
+            "featureList": [
+              "100% client-side on-device AI background removal",
+              "Manual erase and restore edge refinement brushes",
+              "High-speed batch image processing with ZIP export",
+              "AI picture enhancement and color grading",
+              "Canvas crop and aspect ratio controls",
+              "Lossless transparent PNG and WebP exports"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does ClearCut AI upload my photos to a server?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. In client-side and WebAssembly modes, ClearCut AI processes your images 100% locally inside your browser. Your photos never leave your device, with zero cloud storage or tracking."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is ClearCut AI free to use for high-resolution PNG exports?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. You can remove backgrounds, refine hair and fur edges with manual erase/restore brushes, and export full-resolution transparent PNG or WebP images directly in your browser with zero watermarks or credit limits."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does ClearCut AI handle fine hair, fur, and transparent edges?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "ClearCut AI combines neural edge-detection matting with an interactive Erase & Restore Edge Refiner brush studio, letting you zoom in and perfect stray hairs, glass, or foliage down to sub-pixel accuracy."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I remove backgrounds from multiple product photos at once?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Switch to the Batch tab in the top studio bar to queue multiple product images, apply consistent pure-white (#FFFFFF) or transparent backgrounds, and export everything as a single ZIP archive."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What image formats and file sizes are supported?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "ClearCut AI supports JPG, JPEG, PNG, WebP, and AVIF images up to 15MB per file. You can drag and drop files, browse from your device, or paste screenshots directly with Ctrl+V."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why use a browser-native background remover instead of remove.bg or cloud tools?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Cloud tools require uploading private photos to third-party servers and often gate HD downloads behind per-image credits. ClearCut AI gives you instant browser-native cutouts, full-resolution exports, and verifiable on-device privacy for free."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

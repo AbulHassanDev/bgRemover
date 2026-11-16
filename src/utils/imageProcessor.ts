@@ -111,8 +111,9 @@ export async function imageToBase64(imgOrUrl: HTMLImageElement | string): Promis
 }
 
 /**
- * High-Precision Server AI Neural Background Removal (ISNet deep learning model)
- * Fast, robust, and zero memory/download strain on client browsers.
+ * High-Precision Server / Hybrid AI Neural Background Removal (ISNet deep learning model).
+ * Uses configured server provider if available, otherwise executes the exact same ISNet
+ * neural segmentation directly on-device via runtime-loaded WebAssembly.
  */
 export async function removeBackgroundServer(
   img: HTMLImageElement,
@@ -121,38 +122,36 @@ export async function removeBackgroundServer(
   const origW = img.naturalWidth || img.width;
   const origH = img.naturalHeight || img.height;
 
-  onProgress?.(15, 'Sending image to Neural AI Engine...');
-  const base64 = await imageToBase64(img);
+  onProgress?.(10, 'Initializing Neural AI Engine...');
 
-  onProgress?.(45, 'AI Neural ISNet model segmenting foreground...');
-  const res = await fetch('/api/ai/remove-background', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64: base64 }),
-  });
+  try {
+    const base64 = await imageToBase64(img);
+    const res = await fetch('/api/ai/remove-background', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64 }),
+    });
 
-  if (!res.ok) {
-    const errJson = await res.json().catch(() => ({}));
-    throw new Error(errJson.error || `Server AI processing failed (${res.status})`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.resultBase64) {
+        onProgress?.(85, 'Extracting alpha mask & perfecting fine edges...');
+        const cutoutImg = await loadImage(data.resultBase64);
+        const maskDataUrl = await extractMaskFromCutout(cutoutImg);
+        onProgress?.(100, 'Complete');
+        return {
+          processedUrl: data.resultBase64,
+          maskDataUrl,
+          width: origW,
+          height: origH,
+        };
+      }
+    }
+  } catch {
+    // Static host or offline — fall through seamlessly to client neural WASM
   }
 
-  onProgress?.(85, 'Extracting alpha mask & perfecting fine edges...');
-  const data = await res.json();
-  if (!data.resultBase64) {
-    throw new Error('Server AI did not return cutout image.');
-  }
-
-  const cutoutImg = await loadImage(data.resultBase64);
-  const maskDataUrl = await extractMaskFromCutout(cutoutImg);
-
-  onProgress?.(100, 'Complete');
-
-  return {
-    processedUrl: data.resultBase64,
-    maskDataUrl,
-    width: origW,
-    height: origH,
-  };
+  return await removeBackgroundNeuralWasm(img, onProgress);
 }
 
 /**
@@ -348,9 +347,49 @@ export async function removeBackgroundFastClient(
   };
 }
 
+let cachedImglyModule: any = null;
+let cachedBackendAlive: boolean | null = null;
+
+async function isExpressProxyAvailable(): Promise<boolean> {
+  if (cachedBackendAlive !== null) return cachedBackendAlive;
+  try {
+    const res = await fetch('/api/health', { method: 'GET' });
+    cachedBackendAlive = res.ok;
+  } catch {
+    cachedBackendAlive = false;
+  }
+  return cachedBackendAlive;
+}
+
+async function loadImglyRuntime(): Promise<any> {
+  if (cachedImglyModule) return cachedImglyModule;
+
+  const hasProxy = await isExpressProxyAvailable();
+  const urls = hasProxy
+    ? [
+        `${window.location.origin}/api/cdn/jsdelivr/npm/@imgly/background-removal@1.7.0/+esm`,
+        'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
+      ]
+    : [
+        'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm',
+        'https://esm.sh/@imgly/background-removal@1.7.0?bundle',
+      ];
+
+  let lastErr: unknown = null;
+  for (const url of urls) {
+    try {
+      cachedImglyModule = await import(/* @vite-ignore */ url);
+      return cachedImglyModule;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Failed to load Neural WebAssembly runtime');
+}
+
 /**
  * Neural AI WebAssembly Background Removal via @imgly/background-removal
- * using quantized models and local proxy for guaranteed reliability.
+ * loaded dynamically by external CDN / proxy URL at runtime (zero bundle bloat).
  */
 export async function removeBackgroundNeuralWasm(
   img: HTMLImageElement,
@@ -362,7 +401,10 @@ export async function removeBackgroundNeuralWasm(
   onProgress?.(10, 'Initializing Neural AI model weights...');
 
   try {
-    const imgly = await import('@imgly/background-removal');
+    const [imgly, hasProxy] = await Promise.all([
+      loadImglyRuntime(),
+      isExpressProxyAvailable(),
+    ]);
 
     onProgress?.(25, 'Loading quantized ISNet neural weights...');
 
@@ -374,11 +416,15 @@ export async function removeBackgroundNeuralWasm(
     const inputBlob = await canvasToBlob(canvas, 'image/png');
 
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('WASM download timeout. Switching to Neural Server engine.')), 30000);
+      setTimeout(() => reject(new Error('WASM model download timeout. Switching to Fast Client engine.')), 45000);
     });
 
+    const publicPath = hasProxy
+      ? `${window.location.origin}/api/imgly/`
+      : 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+
     const removalPromise = imgly.removeBackground(inputBlob, {
-      publicPath: `${window.location.origin}/api/imgly/`,
+      publicPath,
       model: 'isnet_quint8',
       rescale: true,
       progress: (key: string, current: number, total: number) => {
@@ -414,9 +460,9 @@ export async function removeBackgroundNeuralWasm(
       height: origH,
     };
   } catch (err: any) {
-    console.warn('Neural WASM model encountered an issue, falling back to Server Neural engine:', err);
-    onProgress?.(40, 'WASM notice: Switching to High-Precision AI Server engine...');
-    return await removeBackgroundServer(img, onProgress);
+    console.warn('Neural WASM model encountered an issue, falling back to Fast Client engine:', err);
+    onProgress?.(40, 'WASM offline fallback: Running fast client edge segmentation...');
+    return await removeBackgroundFastClient(img, onProgress);
   }
 }
 

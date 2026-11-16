@@ -22,6 +22,7 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onOpenShortcuts: () => void;
   onScrollToCeo?: () => void;
+  onNavigateHome?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,19 +34,29 @@ export const Navbar: React.FC<NavbarProps> = ({
   apiSettings,
   onOpenSettings,
   onOpenShortcuts,
-  onScrollToCeo,
+  onNavigateHome,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Brand Logo */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <a
+          href="/"
+          onClick={(e) => {
+            if (onNavigateHome) {
+              e.preventDefault();
+              onNavigateHome();
+            }
+          }}
+          className="flex items-center gap-2 sm:gap-3 shrink-0 group"
+          title="ClearCut AI — Home"
+        >
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm shadow-indigo-200 shrink-0">
             <Wand2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-indigo-600 transition-colors">
                 ClearCut AI
               </span>
               <span className="hidden xs:inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 sm:px-2 py-0.5 rounded-full border border-indigo-100/80">
@@ -58,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               AI Background Remover & Edge Matting Studio
             </p>
           </div>
-        </div>
+        </a>
 
         {/* Tab Navigation */}
         <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shrink-0">

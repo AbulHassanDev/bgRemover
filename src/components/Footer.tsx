@@ -11,17 +11,24 @@ import { CeoCard } from './CeoCard';
 
 interface FooterProps {
   onLoadCeoSample?: (sampleUrl: string, sampleName: string) => void;
+  onNavigateRoute?: (path: string) => void;
   onOpenSettings?: () => void;
   onOpenShortcuts?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onLoadCeoSample,
-  onOpenSettings,
-  onOpenShortcuts,
+  onNavigateRoute,
 }) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (onNavigateRoute) {
+      e.preventDefault();
+      onNavigateRoute(path);
+    }
   };
 
   return (
@@ -95,47 +102,56 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
           </div>
 
-          {/* Tools & Workflows */}
+          {/* Tools & Workflows (Semantic SEO Internal Links) */}
           <div className="space-y-2.5 sm:space-y-3">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Studio Tools
+              Studio Workflows
             </h4>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li>
-                <button
-                  type="button"
-                  onClick={scrollToTop}
-                  className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                <a
+                  href="/private-background-remover"
+                  onClick={(e) => handleLinkClick(e, '/private-background-remover')}
+                  className="hover:text-blue-600 transition-colors"
                 >
-                  AI Background Remover
-                </button>
+                  Client-Side Background Remover
+                </a>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={scrollToTop}
-                  className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                <a
+                  href="/ecommerce-product-cutout"
+                  onClick={(e) => handleLinkClick(e, '/ecommerce-product-cutout')}
+                  className="hover:text-blue-600 transition-colors"
                 >
-                  High-Speed Batch Processing
-                </button>
+                  E-Commerce Product Cutouts
+                </a>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={scrollToTop}
-                  className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                <a
+                  href="/portrait-edge-studio"
+                  onClick={(e) => handleLinkClick(e, '/portrait-edge-studio')}
+                  className="hover:text-blue-600 transition-colors"
                 >
-                  Edge Refiner & Manual Brush
-                </button>
+                  Portrait &amp; Hair Edge Studio
+                </a>
               </li>
               <li>
-                <button
-                  type="button"
-                  onClick={scrollToTop}
-                  className="hover:text-blue-600 transition-colors cursor-pointer text-left"
+                <a
+                  href="/youtube-thumbnail-cutout"
+                  onClick={(e) => handleLinkClick(e, '/youtube-thumbnail-cutout')}
+                  className="hover:text-blue-600 transition-colors"
                 >
-                  Crop & Aspect Ratio Tool
-                </button>
+                  Creator Thumbnail Cutouts
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/alternatives/remove-bg-alternative"
+                  onClick={(e) => handleLinkClick(e, '/alternatives/remove-bg-alternative')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Free remove.bg Alternative
+                </a>
               </li>
             </ul>
           </div>

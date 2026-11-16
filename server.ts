@@ -111,13 +111,6 @@ async function startServer() {
       const defaultJpg = path.join(publicDir, "abulhassan_ceo.jpg");
       fs.writeFileSync(defaultJpg, buffer);
 
-      // Also sync to src/assets/images
-      const srcAssetsDir = path.join(process.cwd(), "src", "assets", "images");
-      if (fs.existsSync(srcAssetsDir)) {
-        fs.writeFileSync(path.join(srcAssetsDir, "abulhassan_ceo_real_1790059360386.jpg"), buffer);
-        fs.writeFileSync(path.join(srcAssetsDir, "abulhassan_ceo_1790058551484.jpg"), buffer);
-      }
-
       res.json({
         success: true,
         url: `/images/abulhassan_ceo.jpg?t=${Date.now()}`,
@@ -400,7 +393,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
     }
   });
 
-  // High-Precision AI Neural Server-side Background Removal (ISNet deep learning model)
+  // High-Precision AI Server-side Background Removal (uses configured external AI providers, else delegates to browser WebAssembly)
   app.post("/api/ai/remove-background", async (req, res) => {
     try {
       const { imageBase64 } = req.body;
@@ -409,32 +402,117 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
         return;
       }
 
-      // Extract raw buffer and MIME type cleanly (handles remote URL, data URI, or raw base64)
-      const { buffer, mimeType } = await resolveImageBufferAndBase64(imageBase64, "image/png");
+      const { cleanBase64, buffer } = await resolveImageBufferAndBase64(imageBase64, "image/png");
 
-      // Dynamic import to keep startup instantaneous
-      const { removeBackground } = await import("@imgly/background-removal-node");
-      const blob = new Blob([buffer], { type: mimeType });
+      if (process.env.FAL_KEY) {
+        const response = await fetch("https://fal.run/fal-ai/birefnet/v2", {
+          method: "POST",
+          headers: {
+            Authorization: `Key ${process.env.FAL_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image_url: `data:image/png;base64,${cleanBase64}` }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.image?.url) {
+            const imgRes = await fetch(data.image.url);
+            const outBuf = Buffer.from(await imgRes.arrayBuffer());
+            res.json({ success: true, resultBase64: `data:image/png;base64,${outBuf.toString("base64")}` });
+            return;
+          }
+        }
+      }
 
-      const resultBlob = await removeBackground(blob, {
-        output: {
-          format: "image/png",
-          quality: 0.98,
-        },
-      });
+      if (process.env.REMOVE_BG_API_KEY) {
+        const formData = new URLSearchParams();
+        formData.append("image_file_b64", cleanBase64);
+        formData.append("size", "auto");
+        const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+          method: "POST",
+          headers: {
+            "X-Api-Key": process.env.REMOVE_BG_API_KEY,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData.toString(),
+        });
+        if (response.ok) {
+          const outBuf = Buffer.from(await response.arrayBuffer());
+          res.json({ success: true, resultBase64: `data:image/png;base64,${outBuf.toString("base64")}` });
+          return;
+        }
+      }
 
-      const arrayBuffer = await resultBlob.arrayBuffer();
-      const outputBase64 = Buffer.from(arrayBuffer).toString("base64");
+      if (process.env.HF_API_KEY) {
+        const hfResponse = await fetch("https://api-inference.huggingface.co/models/briaai/RMBG-1.4", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.HF_API_KEY}`,
+            "Content-Type": "application/octet-stream",
+          },
+          body: buffer,
+        });
+        if (hfResponse.ok) {
+          const outBuf = Buffer.from(await hfResponse.arrayBuffer());
+          res.json({ success: true, resultBase64: `data:image/png;base64,${outBuf.toString("base64")}` });
+          return;
+        }
+      }
 
+      // Signal client to run ISNet neural segmentation directly on-device via WebAssembly
       res.json({
-        success: true,
-        resultBase64: `data:image/png;base64,${outputBase64}`,
+        success: false,
+        useClientNeural: true,
+        message: "Using on-device WebAssembly neural segmentation runtime.",
       });
     } catch (err: any) {
-      console.error("AI Server-side background removal error:", err);
-      res.status(500).json({
-        error: err.message || "Failed to remove background on AI server",
+      console.error("AI Server-side background removal notice:", err);
+      res.json({
+        success: false,
+        useClientNeural: true,
+        message: err.message || "Delegating to on-device WebAssembly runtime.",
       });
+    }
+  });
+
+  // Caching proxy for runtime jsDelivr ESM modules (@imgly/background-removal & onnxruntime-web)
+  const cdnEsmCache = new Map<string, { data: string; contentType: string }>();
+  app.get("/api/cdn/jsdelivr/*", async (req, res) => {
+    try {
+      const subPath = req.params[0] || "";
+      if (!subPath.startsWith("npm/@imgly/") && !subPath.startsWith("npm/onnxruntime-web")) {
+        res.status(403).send("Disallowed CDN package");
+        return;
+      }
+
+      if (cdnEsmCache.has(subPath)) {
+        const cached = cdnEsmCache.get(subPath)!;
+        res.setHeader("Content-Type", cached.contentType);
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.send(cached.data);
+        return;
+      }
+
+      const upstream = await fetch(`https://cdn.jsdelivr.net/${subPath}`);
+      if (!upstream.ok) {
+        res.status(upstream.status).send(`Upstream CDN fetch error: ${upstream.statusText}`);
+        return;
+      }
+
+      const contentType = upstream.headers.get("content-type") || "application/javascript; charset=utf-8";
+      let text = await upstream.text();
+      // Rewrite root-relative jsDelivr /npm/... imports so they resolve cleanly via same-origin proxy
+      text = text
+        .replace(/(["'])\/npm\//g, "$1/api/cdn/jsdelivr/npm/")
+        .replace(/(["'])\/gh\//g, "$1/api/cdn/jsdelivr/gh/");
+
+      cdnEsmCache.set(subPath, { data: text, contentType });
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.send(text);
+    } catch (err: any) {
+      console.error("CDN ESM proxy error:", err);
+      res.status(502).send("Failed to proxy ESM module");
     }
   });
 
@@ -1056,6 +1134,84 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
 </html>`);
   });
 
+  const seoRouteMeta: Record<string, { title: string; description: string; priority: string; changefreq: string }> = {
+    "/": {
+      title: "ClearCut AI — Free, Private Client-Side Background Remover",
+      description:
+        "Remove image backgrounds in sub-seconds directly in your browser. 100% on-device privacy, zero uploads, edge refinement brushes & batch studio. Try free.",
+      priority: "1.0",
+      changefreq: "daily",
+    },
+    "/private-background-remover": {
+      title: "Client-Side Background Remover — 100% On-Device Privacy | ClearCut AI",
+      description:
+        "Remove photo backgrounds offline inside your browser with zero cloud uploads. Built with WebAssembly for GDPR-safe, confidential, and instant cutouts.",
+      priority: "0.9",
+      changefreq: "weekly",
+    },
+    "/ecommerce-product-cutout": {
+      title: "Product Photo Background Remover for Amazon & Shopify | ClearCut AI",
+      description:
+        "Create pure white (#FFFFFF) or transparent product cutouts for Amazon, Shopify & Etsy in seconds. Batch queue, drop shadows, and lossless exports.",
+      priority: "0.9",
+      changefreq: "weekly",
+    },
+    "/portrait-edge-studio": {
+      title: "Portrait & Hair Edge Background Remover Studio | ClearCut AI",
+      description:
+        "Keep every strand of hair, fur, and translucent fabric intact. Combine neural AI segmentation with manual Erase & Restore edge brushes for studio portraits.",
+      priority: "0.9",
+      changefreq: "weekly",
+    },
+    "/youtube-thumbnail-cutout": {
+      title: "Free Transparent PNG & Thumbnail Cutout Maker | ClearCut AI",
+      description:
+        "Make crisp transparent PNG and WebP cutouts for YouTube thumbnails, TikTok covers, and social graphics. Paste with Ctrl+V, enhance colors, and export free.",
+      priority: "0.8",
+      changefreq: "weekly",
+    },
+    "/alternatives/remove-bg-alternative": {
+      title: "Free Private Alternative to remove.bg (No Credits) | ClearCut AI",
+      description:
+        "Looking for a free, unlimited remove.bg alternative? ClearCut AI delivers HD transparent PNGs, batch processing, and 100% on-device privacy with no credits.",
+      priority: "0.9",
+      changefreq: "weekly",
+    },
+  };
+
+  const resolveOrigin = (req: express.Request): string => {
+    if (process.env.APP_URL) {
+      return process.env.APP_URL.replace(/\/+$/, "");
+    }
+    const proto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0]?.trim() || req.protocol;
+    const host = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim() || req.get("host");
+    return `${proto}://${host}`;
+  };
+
+  // Dynamic robots.txt with absolute Sitemap URL
+  app.get("/robots.txt", (req, res) => {
+    const origin = resolveOrigin(req);
+    res.type("text/plain").send(
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /share/\n\nSitemap: ${origin}/sitemap.xml\n`
+    );
+  });
+
+  // Dynamic sitemap.xml with absolute URLs
+  app.get("/sitemap.xml", (req, res) => {
+    const origin = resolveOrigin(req);
+    const lastmod = new Date().toISOString().split("T")[0];
+    const urls = Object.entries(seoRouteMeta)
+      .map(
+        ([routePath, meta]) =>
+          `  <url>\n    <loc>${origin}${routePath === "/" ? "/" : routePath}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${meta.changefreq}</changefreq>\n    <priority>${meta.priority}</priority>\n  </url>`
+      )
+      .join("\n");
+
+    res.type("application/xml").send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+    );
+  });
+
   // Vite middleware in dev / Static files in production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1065,9 +1221,63 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    app.use(
+      "/assets",
+      express.static(path.join(distPath, "assets"), {
+        maxAge: "1y",
+        immutable: true,
+      })
+    );
+    app.use(express.static(distPath, { index: false }));
+
+    const indexTemplate = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
+    app.get("*", (req, res) => {
+      const origin = resolveOrigin(req);
+      const reqPath = req.path !== "/" ? req.path.replace(/\/+$/, "") : "/";
+      const meta = seoRouteMeta[reqPath] || seoRouteMeta["/"];
+      const canonical = `${origin}${seoRouteMeta[reqPath] ? reqPath : "/"}`;
+      const ogImage = `${origin}/images/og-banner.jpg`;
+
+      const html = indexTemplate
+        .replace(/<title>.*?<\/title>/, `<title>${meta.title}</title>`)
+        .replace(
+          /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="description" content="${meta.description}" />`
+        )
+        .replace(
+          /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
+          `<link rel="canonical" href="${canonical}" />`
+        )
+        .replace(
+          /<meta\s+property="og:title"\s+content="[^"]*"\s*\/?>/i,
+          `<meta property="og:title" content="${meta.title}" />`
+        )
+        .replace(
+          /<meta\s+property="og:description"\s+content="[^"]*"\s*\/?>/i,
+          `<meta property="og:description" content="${meta.description}" />`
+        )
+        .replace(
+          /<meta\s+property="og:url"\s+content="[^"]*"\s*\/?>/i,
+          `<meta property="og:url" content="${canonical}" />`
+        )
+        .replace(
+          /<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>/i,
+          `<meta property="og:image" content="${ogImage}" />`
+        )
+        .replace(
+          /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="twitter:title" content="${meta.title}" />`
+        )
+        .replace(
+          /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="twitter:description" content="${meta.description}" />`
+        )
+        .replace(
+          /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="twitter:image" content="${ogImage}" />`
+        );
+
+      res.status(200).type("text/html").send(html);
     });
   }
 

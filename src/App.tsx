@@ -24,6 +24,9 @@ import { EditHistoryControls } from './components/EditHistoryControls';
 import { CropModal } from './components/CropModal';
 import { AIEnhanceModal } from './components/AIEnhanceModal';
 import { Footer } from './components/Footer';
+import { SeoManager } from './components/SeoManager';
+import { SeoLandingSections } from './components/SeoLandingSections';
+import { getSeoRoute } from './data/seoContent';
 import { useEditHistory } from './hooks/useEditHistory';
 import {
   removeBackgroundClient,
@@ -43,6 +46,7 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [activeTab, setActiveTab] = useState<AppTab>('editor');
   const [currentImage, setCurrentImage] = useState<ImageItem | null>(null);
   const [batchQueue, setQueue] = useState<ImageItem[]>([]);
@@ -451,11 +455,31 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentImage, activeTab, isEdgeRefinerOpen, isCropModalOpen, isSettingsOpen, isShortcutsOpen]);
 
+  // Sync browser back/forward navigation for vertical SEO routes
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleResetToUpload = () => {
     clearHistory();
     setCurrentImage(null);
     setCompositedUrl(null);
     setBgSettings((prev) => ({ ...prev, type: 'transparent' }));
+  };
+
+  const handleNavigateRoute = (path: string) => {
+    const normalized = path || '/';
+    if (window.location.pathname !== normalized) {
+      window.history.pushState({}, '', normalized);
+    }
+    setCurrentPath(normalized);
+    handleResetToUpload();
+    setActiveTab('editor');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleScrollToCeo = () => {
@@ -465,8 +489,12 @@ export default function App() {
     }
   };
 
+  const activeSeoRoute = getSeoRoute(currentPath);
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-indigo-500 selection:text-white">
+      <SeoManager pathname={currentPath} />
+
       {/* Navigation Bar */}
       <Navbar
         activeTab={activeTab}
@@ -478,6 +506,7 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
         onScrollToCeo={handleScrollToCeo}
+        onNavigateHome={() => handleNavigateRoute('/')}
       />
 
       {/* Main Content Area */}
@@ -486,13 +515,24 @@ export default function App() {
         {activeTab === 'editor' && (
           <>
             {!currentImage ? (
-              /* Idle / Dropzone Hero View */
-              <HeroDropzone
-                onFileSelected={handleFileSelected}
-                onSampleSelected={handleSampleSelected}
-                onError={(msg) => addToast(msg, 'error')}
-                isLoading={false}
-              />
+              /* Idle / Dropzone Hero View + Indexable SEO Landing Content */
+              <>
+                <HeroDropzone
+                  onFileSelected={handleFileSelected}
+                  onSampleSelected={handleSampleSelected}
+                  onError={(msg) => addToast(msg, 'error')}
+                  isLoading={false}
+                  seoRoute={activeSeoRoute}
+                />
+                <SeoLandingSections
+                  currentPath={activeSeoRoute.path}
+                  onNavigateRoute={handleNavigateRoute}
+                  onOpenBatch={() => {
+                    setActiveTab('batch');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </>
             ) : (
               /* Active Editing & Comparison Workspace */
               <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
@@ -715,6 +755,7 @@ export default function App() {
           processSingleImage(sampleUrl, sampleName, 1024 * 1024, 'image/jpeg');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
+        onNavigateRoute={handleNavigateRoute}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />

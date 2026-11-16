@@ -112,6 +112,10 @@ export const CeoCard: React.FC<CeoCardProps> = ({
             <img
               src={photoUrl}
               alt="AbulHassan, Founder & CEO"
+              width={56}
+              height={56}
+              loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover object-top"
             />
