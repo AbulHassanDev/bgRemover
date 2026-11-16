@@ -408,32 +408,35 @@ export async function removeBackgroundServer(
 
   onProgress?.(10, 'Initializing Neural AI Engine...');
 
-  try {
-    const base64 = await imageToBase64(img);
-    const res = await fetch('/api/ai/remove-background', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: base64 }),
-    });
+  const hasBackend = await isExpressProxyAvailable();
+  if (hasBackend) {
+    try {
+      const base64 = await imageToBase64(img);
+      const res = await fetch('/api/ai/remove-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
 
-    if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-      const data = await res.json();
-      if (data.success && data.resultBase64) {
-        onProgress?.(85, 'Extracting alpha mask & perfecting fine edges...');
-        const cutoutImg = await loadImage(data.resultBase64);
-        const maskDataUrl = await extractMaskFromCutout(cutoutImg);
-        onProgress?.(100, 'Complete');
-        return {
-          processedUrl: data.resultBase64,
-          maskDataUrl,
-          width: origW,
-          height: origH,
-          engineUsed: 'cloud-api',
-        };
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data.success && data.resultBase64) {
+          onProgress?.(85, 'Extracting alpha mask & perfecting fine edges...');
+          const cutoutImg = await loadImage(data.resultBase64);
+          const maskDataUrl = await extractMaskFromCutout(cutoutImg);
+          onProgress?.(100, 'Complete');
+          return {
+            processedUrl: data.resultBase64,
+            maskDataUrl,
+            width: origW,
+            height: origH,
+            engineUsed: 'cloud-api',
+          };
+        }
       }
+    } catch {
+      // Static host or offline — fall through cleanly to client neural WASM
     }
-  } catch {
-    // Static host or offline — fall through cleanly to client neural WASM
   }
 
   return await removeBackgroundNeuralWasm(img, onProgress, apiSettings);
@@ -503,29 +506,45 @@ export async function removeBackgroundFastClient(
 
   for (let x = 2; x < workW - 2; x += stepX) {
     seedIndices.push(2 * workW + x); // top edge
-    // Only seed bottom edge in outer 16% corners to avoid cutting off torso/subject base
-    if (x < workW * 0.16 || x > workW * 0.84) {
+    // Only seed bottom edge in outer 18% corners to avoid cutting off torso/subject base
+    if (x < workW * 0.18 || x > workW * 0.82) {
       seedIndices.push((workH - 3) * workW + x);
     }
   }
   for (let y = 2; y < workH - 2; y += stepY) {
-    // Side edges (skip lower-side where shoulders often meet frame unless low-edge uniform)
     const idxL = y * workW + 2;
     const idxR = y * workW + (workW - 3);
-    if (y < workH * 0.72 || edges[idxL] < 10) seedIndices.push(idxL);
-    if (y < workH * 0.72 || edges[idxR] < 10) seedIndices.push(idxR);
+    if (y < workH * 0.75 || edges[idxL] < 12) seedIndices.push(idxL);
+    if (y < workH * 0.75 || edges[idxR] < 12) seedIndices.push(idxR);
   }
 
-  // 3. Bucketed Priority-Queue Geodesic Distance from border seeds (256 cost levels, O(N))
-  const MAX_COST = 255;
+  // Build compact border background color palette (representative clusters)
+  const palette: Array<[number, number, number]> = [];
+  for (const sIdx of seedIndices) {
+    if (edges[sIdx] > 28) continue;
+    const p = sIdx * 4;
+    const r = px[p];
+    const g = px[p + 1];
+    const b = px[p + 2];
+    const hasClose = palette.some(
+      ([pr, pg, pb]) =>
+        Math.abs(pr - r) * 0.3 + Math.abs(pg - g) * 0.59 + Math.abs(pb - b) * 0.11 < 18
+    );
+    if (!hasClose && palette.length < 16) {
+      palette.push([r, g, b]);
+    }
+  }
+
+  // 3. Zero-spatial-tax Bucketed Dial's Geodesic Distance (512 half-unit buckets: 0..255.5, O(N))
+  const MAX_BUCKET = 510;
   const dist = new Uint16Array(totalPx).fill(65535);
   const seedRefR = new Uint8Array(totalPx);
   const seedRefG = new Uint8Array(totalPx);
   const seedRefB = new Uint8Array(totalPx);
-  const buckets: number[][] = Array.from({ length: MAX_COST + 1 }, () => []);
+  const buckets: number[][] = Array.from({ length: MAX_BUCKET + 1 }, () => []);
 
   for (const sIdx of seedIndices) {
-    if (edges[sIdx] > 28) continue; // skip seeds sitting right on a border object edge
+    if (edges[sIdx] > 28) continue;
     const p = sIdx * 4;
     dist[sIdx] = 0;
     seedRefR[sIdx] = px[p];
@@ -549,6 +568,7 @@ export async function removeBackgroundFastClient(
       seedRefG[sIdx] = px[p + 1];
       seedRefB[sIdx] = px[p + 2];
       buckets[0].push(sIdx);
+      if (palette.length < 4) palette.push([px[p], px[p + 1], px[p + 2]]);
     }
   }
 
@@ -558,7 +578,7 @@ export async function removeBackgroundFastClient(
   onProgress?.(60, 'Tracing geodesic foreground boundaries...');
   await new Promise((r) => setTimeout(r, 10));
 
-  for (let cost = 0; cost <= MAX_COST; cost++) {
+  for (let cost = 0; cost <= MAX_BUCKET; cost++) {
     const bucket = buckets[cost];
     while (bucket.length > 0) {
       const pos = bucket.pop()!;
@@ -581,23 +601,39 @@ export async function removeBackgroundFastClient(
 
         const nPos = ny * workW + nx;
         const np4 = nPos * 4;
+        const nr = px[np4];
+        const ng = px[np4 + 1];
+        const nb = px[np4 + 2];
 
-        // Perceptual local diff + drift from origin seed + Sobel edge barrier
+        // Perceptual local jump + distance to nearest border palette color + Sobel edge barrier
         const dLocal =
-          Math.abs(px[np4] - pr) * 0.3 +
-          Math.abs(px[np4 + 1] - pg) * 0.59 +
-          Math.abs(px[np4 + 2] - pb) * 0.11;
-        const dSeed =
-          Math.abs(px[np4] - sr) * 0.3 +
-          Math.abs(px[np4 + 1] - sg) * 0.59 +
-          Math.abs(px[np4 + 2] - sb) * 0.11;
+          Math.abs(nr - pr) * 0.3 +
+          Math.abs(ng - pg) * 0.59 +
+          Math.abs(nb - pb) * 0.11;
+
+        let minPalDist =
+          Math.abs(nr - sr) * 0.3 +
+          Math.abs(ng - sg) * 0.59 +
+          Math.abs(nb - sb) * 0.11;
+        for (let pi = 0; pi < palette.length; pi++) {
+          const pal = palette[pi];
+          const dp =
+            Math.abs(nr - pal[0]) * 0.3 +
+            Math.abs(ng - pal[1]) * 0.59 +
+            Math.abs(nb - pal[2]) * 0.11;
+          if (dp < minPalDist) minPalDist = dp;
+        }
 
         const edgeVal = edges[nPos];
-        const edgeBarrier = edgeVal > 16 ? (edgeVal - 14) * 3.4 : edgeVal * 0.25;
-        const step = Math.round(0.4 + dLocal * 1.15 + dSeed * 0.32 + edgeBarrier);
-        const nextCost = Math.min(MAX_COST, cost + Math.max(1, step));
+        // Smooth gradients & studio vignettes (dLocal <= 4 && edgeVal <= 12 && minPalDist <= 38) incur ZERO step cost!
+        const localPenalty = dLocal > 4.0 ? (dLocal - 3.5) * 2.4 : 0;
+        const palPenalty = minPalDist > 38 ? (minPalDist - 38) * 0.9 : 0;
+        const edgeBarrier = edgeVal > 14 ? (edgeVal - 12) * 5.5 : 0;
 
-        if (nextCost < dist[nPos] && nextCost < MAX_COST) {
+        const stepHalfUnits = Math.round(localPenalty + palPenalty + edgeBarrier);
+        const nextCost = Math.min(MAX_BUCKET, cost + stepHalfUnits);
+
+        if (nextCost < dist[nPos] && nextCost < MAX_BUCKET) {
           dist[nPos] = nextCost;
           seedRefR[nPos] = sr;
           seedRefG[nPos] = sg;
@@ -608,10 +644,10 @@ export async function removeBackgroundFastClient(
     }
   }
 
-  // 4. Convert geodesic distance into soft foreground probability & close interior holes
+  // 4. Convert geodesic distance (half-units) into soft foreground probability & close interior holes
   const bgReachable = new Uint8Array(totalPx);
   const bgStack: number[] = [];
-  const bgThreshold = 78;
+  const bgThreshold = 140; // = 70 cost units
 
   for (let x = 0; x < workW; x++) {
     for (const y of [0, workH - 1]) {
@@ -655,9 +691,9 @@ export async function removeBackgroundFastClient(
       workAlpha[i] = 1.0;
     } else {
       const d = dist[i];
-      if (d <= 44) workAlpha[i] = 0.0;
+      if (d <= 76) workAlpha[i] = 0.0;
       else if (d >= bgThreshold) workAlpha[i] = 1.0;
-      else workAlpha[i] = (d - 44) / (bgThreshold - 44);
+      else workAlpha[i] = (d - 76) / (bgThreshold - 76);
     }
   }
 
@@ -677,7 +713,7 @@ export async function removeBackgroundFastClient(
 let cachedImglyModule: any = null;
 let cachedBackendAlive: boolean | null = null;
 
-async function isExpressProxyAvailable(): Promise<boolean> {
+export async function isExpressProxyAvailable(): Promise<boolean> {
   if (cachedBackendAlive !== null) return cachedBackendAlive;
   try {
     const res = await fetch('/api/health', { method: 'GET' });
@@ -828,6 +864,7 @@ export async function removeBackgroundNeuralWasm(
               device: 'cpu',
               proxyToWorker: false,
               rescale: true,
+              fetchArgs: hasProxy ? undefined : { mode: 'cors', credentials: 'omit' },
               progress: (key: string, current: number, total: number) => {
                 resetStallTimer();
                 if (total > 0) {

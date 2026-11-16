@@ -147,6 +147,11 @@ export const AIEnhanceModal: React.FC<AIEnhanceModalProps> = ({
         analysisPayload = targetSourceUrl;
       }
 
+      const { isExpressProxyAvailable } = await import('../utils/imageProcessor');
+      if (!(await isExpressProxyAvailable())) {
+        throw new Error('Static client runtime');
+      }
+
       const res = await fetch('/api/ai/enhance-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,6 +161,9 @@ export const AIEnhanceModal: React.FC<AIEnhanceModalProps> = ({
         }),
       });
 
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
       const json = await res.json();
       if (json.success && json.data) {
         const data = json.data;

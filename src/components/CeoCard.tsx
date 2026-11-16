@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Wand2, ArrowRight } from 'lucide-react';
+import { isExpressProxyAvailable } from '../utils/imageProcessor';
 
 interface CeoCardProps {
   onLoadCeoSample?: (sampleUrl: string, sampleName: string) => void;
@@ -13,26 +14,33 @@ export const CeoCard: React.FC<CeoCardProps> = ({
   const [photoUrl, setPhotoUrl] = useState<string>('/images/abulhassan_ceo.jpg');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load and auto-sync photo to filesystem
+  // Load and auto-sync photo to filesystem when backend is running
   useEffect(() => {
     const cached = localStorage.getItem('clearcut_ceo_custom_photo');
     if (cached) {
       setPhotoUrl(cached);
-      // Auto-sync client localStorage image to server disk so git commits and Vercel builds retain it
       if (cached.startsWith('data:image')) {
-        fetch('/api/ceo-photo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: cached }),
-        }).catch(() => {});
+        isExpressProxyAvailable()
+          .then((hasBackend) => {
+            if (!hasBackend) return;
+            return fetch('/api/ceo-photo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageBase64: cached }),
+            });
+          })
+          .catch(() => {});
       }
       return;
     }
 
-    fetch('/api/ceo-photo')
-      .then((res) => res.json())
+    isExpressProxyAvailable()
+      .then((hasBackend) => {
+        if (!hasBackend) return null;
+        return fetch('/api/ceo-photo').then((res) => (res.ok ? res.json() : null));
+      })
       .then((data) => {
-        if (data.exists && data.url) {
+        if (data?.exists && data.url) {
           setPhotoUrl(data.url);
         }
       })
@@ -51,11 +59,13 @@ export const CeoCard: React.FC<CeoCardProps> = ({
         localStorage.setItem('clearcut_ceo_custom_photo', base64Data);
 
         try {
-          await fetch('/api/ceo-photo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: base64Data }),
-          });
+          if (await isExpressProxyAvailable()) {
+            await fetch('/api/ceo-photo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageBase64: base64Data }),
+            });
+          }
         } catch (err) {
           console.error('Failed to sync CEO photo to disk:', err);
         }

@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /share/
 
-Sitemap: /sitemap.xml
+Sitemap: https://bg-remover-orpin-chi.vercel.app/sitemap.xml

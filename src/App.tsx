@@ -32,6 +32,7 @@ import {
   removeBackgroundClient,
   loadImage,
   renderCompositedCanvas,
+  isExpressProxyAvailable,
 } from './utils/imageProcessor';
 import {
   Sparkles,
@@ -190,15 +191,18 @@ export default function App() {
         analysisPayload = url;
       }
 
-      // Async Gemini AI analysis in background for meta tips
-      fetch('/api/ai/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: analysisPayload, mimeType: 'image/jpeg' }),
-      })
-        .then((r) => r.json())
+      // Async Gemini AI analysis in background when Express backend is present
+      isExpressProxyAvailable()
+        .then((hasBackend) => {
+          if (!hasBackend) return null;
+          return fetch('/api/ai/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: analysisPayload, mimeType: 'image/jpeg' }),
+          }).then((r) => (r.ok ? r.json() : null));
+        })
         .then((res) => {
-          if (res.success && res.data) {
+          if (res?.success && res.data) {
             setCurrentImage((prev) =>
               prev
                 ? {
