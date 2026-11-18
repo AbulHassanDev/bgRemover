@@ -51,17 +51,21 @@ export const Footer: React.FC<FooterProps> = ({
 
       {/* Main Responsive Footer Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-8">
           {/* Brand Info & Mission */}
-          <div className="space-y-3 sm:space-y-4">
-            <div className="flex items-center gap-2.5">
+          <div className="space-y-3 sm:space-y-4 lg:col-span-1">
+            <a
+              href="/"
+              onClick={(e) => handleLinkClick(e, '/')}
+              className="inline-flex items-center gap-2.5 group"
+            >
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
                 <Wand2 className="w-4 h-4" />
               </div>
-              <span className="font-extrabold text-lg text-slate-900 tracking-tight">
+              <span className="font-extrabold text-lg text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
                 ClearCut AI
               </span>
-            </div>
+            </a>
 
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
               Browser-native AI background removal and image editing. Built for photographers,
@@ -102,7 +106,7 @@ export const Footer: React.FC<FooterProps> = ({
             </div>
           </div>
 
-          {/* Tools & Workflows (Semantic SEO Internal Links) */}
+          {/* Core Studio Workflows (Internal Links 1-5) */}
           <div className="space-y-2.5 sm:space-y-3">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Studio Workflows
@@ -110,20 +114,20 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li>
                 <a
-                  href="/private-background-remover"
-                  onClick={(e) => handleLinkClick(e, '/private-background-remover')}
+                  href="/"
+                  onClick={(e) => handleLinkClick(e, '/')}
                   className="hover:text-blue-600 transition-colors"
                 >
-                  Client-Side Background Remover
+                  AI Background Remover
                 </a>
               </li>
               <li>
                 <a
-                  href="/ecommerce-product-cutout"
-                  onClick={(e) => handleLinkClick(e, '/ecommerce-product-cutout')}
+                  href="/private-background-remover"
+                  onClick={(e) => handleLinkClick(e, '/private-background-remover')}
                   className="hover:text-blue-600 transition-colors"
                 >
-                  E-Commerce Product Cutouts
+                  Client-Side Privacy Remover
                 </a>
               </li>
               <li>
@@ -137,11 +141,11 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <a
-                  href="/youtube-thumbnail-cutout"
-                  onClick={(e) => handleLinkClick(e, '/youtube-thumbnail-cutout')}
+                  href="/batch-background-remover"
+                  onClick={(e) => handleLinkClick(e, '/batch-background-remover')}
                   className="hover:text-blue-600 transition-colors"
                 >
-                  Creator Thumbnail Cutouts
+                  Bulk Batch ZIP Remover
                 </a>
               </li>
               <li>
@@ -156,10 +160,64 @@ export const Footer: React.FC<FooterProps> = ({
             </ul>
           </div>
 
+          {/* Specialized Cutout Tools (Internal Links 6-10) */}
+          <div className="space-y-2.5 sm:space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Specialized Cutouts
+            </h4>
+            <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
+              <li>
+                <a
+                  href="/ecommerce-product-cutout"
+                  onClick={(e) => handleLinkClick(e, '/ecommerce-product-cutout')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Amazon &amp; Shopify Product Editor
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/passport-photo-background-remover"
+                  onClick={(e) => handleLinkClick(e, '/passport-photo-background-remover')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Passport &amp; ID Background Maker
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/logo-transparent-background-maker"
+                  onClick={(e) => handleLinkClick(e, '/logo-transparent-background-maker')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Transparent Logo PNG Maker
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/car-dealership-background-remover"
+                  onClick={(e) => handleLinkClick(e, '/car-dealership-background-remover')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  Car Dealership Cutout Tool
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/youtube-thumbnail-cutout"
+                  onClick={(e) => handleLinkClick(e, '/youtube-thumbnail-cutout')}
+                  className="hover:text-blue-600 transition-colors"
+                >
+                  YouTube Thumbnail Maker
+                </a>
+              </li>
+            </ul>
+          </div>
+
           {/* Privacy & Architecture */}
           <div className="space-y-2.5 sm:space-y-3">
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Privacy & Performance
+              Privacy &amp; Performance
             </h4>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li className="flex items-center gap-2">
@@ -176,7 +234,7 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
-                <span>Lossless PNG & WebP Exports</span>
+                <span>Lossless PNG &amp; WebP Exports</span>
               </li>
             </ul>
           </div>
@@ -187,7 +245,7 @@ export const Footer: React.FC<FooterProps> = ({
               Executive Office
             </h4>
             <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-              Founded & led by <strong className="font-semibold text-slate-800">AbulHassan</strong>.
+              Founded &amp; led by <strong className="font-semibold text-slate-800">AbulHassan</strong>.
               For enterprise licensing, API integrations, or media inquiries:
             </p>
             <a

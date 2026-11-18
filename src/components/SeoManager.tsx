@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { getSeoRoute } from '../data/seoContent';
+import { getSeoRoute, buildRouteSchemaGraph } from '../data/seoContent';
 
 interface SeoManagerProps {
   pathname: string;
@@ -25,6 +25,7 @@ export const SeoManager: React.FC<SeoManagerProps> = ({ pathname }) => {
     document.title = route.title;
 
     upsertMetaTag('name', 'description', route.description);
+    upsertMetaTag('name', 'keywords', route.keywords);
     upsertMetaTag('property', 'og:title', route.title);
     upsertMetaTag('property', 'og:description', route.description);
     upsertMetaTag('property', 'og:url', canonicalUrl);
@@ -40,6 +41,21 @@ export const SeoManager: React.FC<SeoManagerProps> = ({ pathname }) => {
       document.head.appendChild(canonicalLink);
     }
     canonicalLink.setAttribute('href', canonicalUrl);
+
+    const schemaJson = JSON.stringify(buildRouteSchemaGraph(route, origin));
+    let jsonLdScript = document.getElementById('clearcut-jsonld') as HTMLScriptElement | null;
+    if (!jsonLdScript) {
+      jsonLdScript = document.querySelector(
+        'script[type="application/ld+json"]'
+      ) as HTMLScriptElement | null;
+      if (!jsonLdScript) {
+        jsonLdScript = document.createElement('script');
+        jsonLdScript.setAttribute('type', 'application/ld+json');
+        document.head.appendChild(jsonLdScript);
+      }
+      jsonLdScript.id = 'clearcut-jsonld';
+    }
+    jsonLdScript.textContent = schemaJson;
   }, [pathname]);
 
   return null;

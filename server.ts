@@ -4,6 +4,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { SEO_ROUTES, SEO_ROUTE_LIST, getSeoRoute, buildRouteSchemaGraph } from "./src/data/seoContent";
 
 dotenv.config();
 
@@ -1157,51 +1158,6 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
 </html>`);
   });
 
-  const seoRouteMeta: Record<string, { title: string; description: string; priority: string; changefreq: string }> = {
-    "/": {
-      title: "ClearCut AI — Free, Private Client-Side Background Remover",
-      description:
-        "Remove image backgrounds in sub-seconds directly in your browser. 100% on-device privacy, zero uploads, edge refinement brushes & batch studio. Try free.",
-      priority: "1.0",
-      changefreq: "daily",
-    },
-    "/private-background-remover": {
-      title: "Client-Side Background Remover — 100% On-Device Privacy | ClearCut AI",
-      description:
-        "Remove photo backgrounds offline inside your browser with zero cloud uploads. Built with WebAssembly for GDPR-safe, confidential, and instant cutouts.",
-      priority: "0.9",
-      changefreq: "weekly",
-    },
-    "/ecommerce-product-cutout": {
-      title: "Product Photo Background Remover for Amazon & Shopify | ClearCut AI",
-      description:
-        "Create pure white (#FFFFFF) or transparent product cutouts for Amazon, Shopify & Etsy in seconds. Batch queue, drop shadows, and lossless exports.",
-      priority: "0.9",
-      changefreq: "weekly",
-    },
-    "/portrait-edge-studio": {
-      title: "Portrait & Hair Edge Background Remover Studio | ClearCut AI",
-      description:
-        "Keep every strand of hair, fur, and translucent fabric intact. Combine neural AI segmentation with manual Erase & Restore edge brushes for studio portraits.",
-      priority: "0.9",
-      changefreq: "weekly",
-    },
-    "/youtube-thumbnail-cutout": {
-      title: "Free Transparent PNG & Thumbnail Cutout Maker | ClearCut AI",
-      description:
-        "Make crisp transparent PNG and WebP cutouts for YouTube thumbnails, TikTok covers, and social graphics. Paste with Ctrl+V, enhance colors, and export free.",
-      priority: "0.8",
-      changefreq: "weekly",
-    },
-    "/alternatives/remove-bg-alternative": {
-      title: "Free Private Alternative to remove.bg (No Credits) | ClearCut AI",
-      description:
-        "Looking for a free, unlimited remove.bg alternative? ClearCut AI delivers HD transparent PNGs, batch processing, and 100% on-device privacy with no credits.",
-      priority: "0.9",
-      changefreq: "weekly",
-    },
-  };
-
   const resolveOrigin = (req: express.Request): string => {
     if (process.env.APP_URL) {
       return process.env.APP_URL.replace(/\/+$/, "");
@@ -1223,12 +1179,10 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
   app.get("/sitemap.xml", (req, res) => {
     const origin = resolveOrigin(req);
     const lastmod = new Date().toISOString().split("T")[0];
-    const urls = Object.entries(seoRouteMeta)
-      .map(
-        ([routePath, meta]) =>
-          `  <url>\n    <loc>${origin}${routePath === "/" ? "/" : routePath}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${meta.changefreq}</changefreq>\n    <priority>${meta.priority}</priority>\n  </url>`
-      )
-      .join("\n");
+    const urls = SEO_ROUTE_LIST.map(
+      (route) =>
+        `  <url>\n    <loc>${origin}${route.path === "/" ? "/" : route.path}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${route.changefreq}</changefreq>\n    <priority>${route.priority}</priority>\n  </url>`
+    ).join("\n");
 
     res.type("application/xml").send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
@@ -1253,19 +1207,32 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
     );
     app.use(express.static(distPath, { index: false }));
 
-    const indexTemplate = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
+    const rootIndexTemplate = fs.readFileSync(path.join(distPath, "index.html"), "utf-8");
     app.get("*", (req, res) => {
       const origin = resolveOrigin(req);
       const reqPath = req.path !== "/" ? req.path.replace(/\/+$/, "") : "/";
-      const meta = seoRouteMeta[reqPath] || seoRouteMeta["/"];
-      const canonical = `${origin}${seoRouteMeta[reqPath] ? reqPath : "/"}`;
+      const matched = Boolean(SEO_ROUTES[reqPath]);
+      const meta = getSeoRoute(reqPath);
+      const canonical = `${origin}${matched ? reqPath : "/"}`;
       const ogImage = `${origin}/images/og-banner.jpg`;
+      const routeHtmlPath =
+        matched && reqPath !== "/"
+          ? path.join(distPath, reqPath.replace(/^\/+/, ""), "index.html")
+          : path.join(distPath, "index.html");
+      const baseHtml = fs.existsSync(routeHtmlPath)
+        ? fs.readFileSync(routeHtmlPath, "utf-8")
+        : rootIndexTemplate;
+      const schemaJson = JSON.stringify(buildRouteSchemaGraph(meta, origin));
 
-      const html = indexTemplate
-        .replace(/<title>.*?<\/title>/, `<title>${meta.title}</title>`)
+      const html = baseHtml
+        .replace(/<title>.*?<\/title>/s, `<title>${meta.title}</title>`)
         .replace(
           /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
           `<meta name="description" content="${meta.description}" />`
+        )
+        .replace(
+          /<meta\s+name="keywords"\s+content="[^"]*"\s*\/?>/i,
+          `<meta name="keywords" content="${meta.keywords}" />`
         )
         .replace(
           /<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/i,
@@ -1298,6 +1265,10 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
         .replace(
           /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
           `<meta name="twitter:image" content="${ogImage}" />`
+        )
+        .replace(
+          /<script[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/i,
+          `<script id="clearcut-jsonld" type="application/ld+json">${schemaJson}</script>`
         );
 
       res.status(200).type("text/html").send(html);

@@ -1,11 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Clipboard, Sparkles, ShieldCheck, Zap } from 'lucide-react';
+import { Upload, Clipboard, Sparkles, ShieldCheck, Zap, Layers } from 'lucide-react';
 import { SampleImage } from '../types';
 import { SAMPLE_IMAGES } from '../data/presets';
 import { SeoRouteConfig, SEO_ROUTES } from '../data/seoContent';
 
 interface HeroDropzoneProps {
   onFileSelected: (file: File) => void;
+  onBatchFilesSelected?: (files: File[]) => void;
+  onOpenBatch?: () => void;
   onSampleSelected: (sample: SampleImage) => void;
   onError: (msg: string) => void;
   isLoading?: boolean;
@@ -14,6 +16,8 @@ interface HeroDropzoneProps {
 
 export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
   onFileSelected,
+  onBatchFilesSelected,
+  onOpenBatch,
   onSampleSelected,
   onError,
   isLoading = false,
@@ -21,6 +25,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isBatchPage = seoRoute.path === '/batch-background-remover';
 
   // Handle global clipboard paste
   useEffect(() => {
@@ -33,7 +38,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
         if (items[i].type.indexOf('image') !== -1) {
           const file = items[i].getAsFile();
           if (file) {
-            validateAndProcessFile(file);
+            validateAndProcessFiles([file]);
             break;
           }
         }
@@ -44,20 +49,36 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
     return () => window.removeEventListener('paste', handlePaste);
   }, [isLoading]);
 
-  const validateAndProcessFile = (file: File) => {
+  const validateSingleFile = (file: File): boolean => {
     const maxBytes = 15 * 1024 * 1024;
     if (file.size > maxBytes) {
-      onError('File size exceeds the 15MB limit. Please upload a smaller image.');
-      return;
+      onError(`"${file.name}" exceeds the 15MB limit. Please upload a smaller image.`);
+      return false;
     }
 
     const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
     if (!validTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|avif)$/i)) {
-      onError('Unsupported image format. Please upload JPG, PNG, or WebP.');
-      return;
+      onError(`Unsupported format for "${file.name}". Please upload JPG, PNG, WebP, or AVIF.`);
+      return false;
     }
 
-    onFileSelected(file);
+    return true;
+  };
+
+  const validateAndProcessFiles = (fileList: File[]) => {
+    const valid = fileList.filter(validateSingleFile);
+    if (valid.length === 0) return;
+
+    if ((valid.length > 1 || isBatchPage) && onBatchFilesSelected) {
+      if (valid.length > 1 || (isBatchPage && valid.length >= 1)) {
+        if (valid.length > 1) {
+          onBatchFilesSelected(valid);
+          return;
+        }
+      }
+    }
+
+    onFileSelected(valid[0]);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -66,7 +87,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
     if (isLoading) return;
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      validateAndProcessFile(e.dataTransfer.files[0]);
+      validateAndProcessFiles(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -97,6 +118,19 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
         <p className="mt-2 sm:mt-2.5 text-xs sm:text-base text-slate-600 max-w-2xl mx-auto">
           {seoRoute.subtitle}
         </p>
+
+        {isBatchPage && onOpenBatch && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              type="button"
+              onClick={onOpenBatch}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-colors cursor-pointer"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Open Batch Queue &amp; ZIP Studio</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Drag-and-Drop Area */}
@@ -115,11 +149,12 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
         <input
           ref={fileInputRef}
           type="file"
+          multiple={isBatchPage}
           accept="image/jpeg,image/png,image/webp,image/avif"
           className="hidden"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
-              validateAndProcessFile(e.target.files[0]);
+              validateAndProcessFiles(Array.from(e.target.files));
             }
           }}
         />
@@ -129,11 +164,17 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
 
-          <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
-            Drag and drop your image here
-          </h3>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
+            {isBatchPage
+              ? 'Drag and drop one or multiple images here'
+              : 'Drag and drop your image here'}
+          </h2>
           <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
-            or <span className="text-indigo-600 font-semibold underline underline-offset-2">browse files</span> on your device
+            or{' '}
+            <span className="text-indigo-600 font-semibold underline underline-offset-2">
+              browse files
+            </span>{' '}
+            on your device
           </p>
 
           {/* Quick keyboard paste badge */}
@@ -163,7 +204,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             Try with sample images
           </span>
           <span className="text-[11px] sm:text-xs text-slate-400">
-            (Test fine hair, complex shadows & transparent fur)
+            (Test fine hair, complex shadows &amp; transparent fur)
           </span>
         </div>
 
@@ -213,9 +254,9 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             <Zap className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">Sub-Second Processing</h4>
+            <h3 className="text-xs font-bold text-slate-900">Sub-Second Processing</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Client & server accelerated inference with edge feathering.
+              Client &amp; browser-native AI segmentation with smooth edge feathering.
             </p>
           </div>
         </div>
@@ -225,9 +266,9 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">Fine Edge Refinement</h4>
+            <h3 className="text-xs font-bold text-slate-900">Fine Edge Refinement</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Interactive Erase & Restore brush studio for hair & transparent fabrics.
+              Interactive Erase &amp; Restore brush studio for hair &amp; transparent fabrics.
             </p>
           </div>
         </div>
@@ -237,9 +278,9 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900">Privacy & Lossless Export</h4>
+            <h3 className="text-xs font-bold text-slate-900">Privacy &amp; Lossless Export</h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Full resolution PNG, WebP, and custom composited backgrounds.
+              Full resolution PNG, WebP, and custom composited backgrounds free.
             </p>
           </div>
         </div>

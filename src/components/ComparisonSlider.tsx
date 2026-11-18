@@ -378,7 +378,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               {/* After Image (Background cutout / composited) */}
               <img
                 src={effectiveAfterUrl}
-                alt="Cutout result"
+                alt="Background removed cutout preview"
+                width={dimensions?.width || undefined}
+                height={dimensions?.height || undefined}
                 style={cutoutShadowStyle}
                 className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block pointer-events-none"
                 crossOrigin="anonymous"
@@ -391,7 +393,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               >
                 <img
                   src={originalUrl}
-                  alt="Original input"
+                  alt="Original uploaded photo before background removal"
+                  width={dimensions?.width || undefined}
+                  height={dimensions?.height || undefined}
                   className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block max-w-none"
                   crossOrigin="anonymous"
                 />
@@ -444,7 +448,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               <div className="shadow-xl rounded-xl overflow-hidden bg-white/50 max-h-[220px] sm:max-h-[500px]">
                 <img
                   src={originalUrl}
-                  alt="Original"
+                  alt="Original uploaded photo before background removal"
+                  width={dimensions?.width || undefined}
+                  height={dimensions?.height || undefined}
                   className="max-h-[200px] sm:max-h-[480px] w-auto object-contain block pointer-events-none"
                   crossOrigin="anonymous"
                 />
@@ -462,7 +468,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
               >
                 <img
                   src={effectiveAfterUrl}
-                  alt="Cutout Result"
+                  alt="Transparent cutout result after background removal"
+                  width={dimensions?.width || undefined}
+                  height={dimensions?.height || undefined}
                   style={cutoutShadowStyle}
                   className="max-h-[200px] sm:max-h-[480px] w-auto object-contain block pointer-events-none"
                   crossOrigin="anonymous"
@@ -488,7 +496,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
             >
               <img
                 src={effectiveAfterUrl}
-                alt="Cutout only"
+                alt="Isolated foreground cutout preview"
+                width={dimensions?.width || undefined}
+                height={dimensions?.height || undefined}
                 style={cutoutShadowStyle}
                 className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block pointer-events-none"
                 crossOrigin="anonymous"
@@ -510,7 +520,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
             <div className="shadow-2xl rounded-xl overflow-hidden bg-black">
               <img
                 src={maskUrl}
-                alt="Alpha Matte Mask"
+                alt="Grayscale alpha matte segmentation mask"
+                width={dimensions?.width || undefined}
+                height={dimensions?.height || undefined}
                 className="max-h-[300px] sm:max-h-[560px] w-auto object-contain block pointer-events-none"
                 crossOrigin="anonymous"
               />

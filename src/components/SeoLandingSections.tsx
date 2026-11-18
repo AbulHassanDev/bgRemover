@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Cpu,
@@ -12,8 +12,14 @@ import {
   Check,
   X,
   Scale,
+  IdCard,
+  Stamp,
+  Car,
+  Layers,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
-import { SEO_FAQS } from '../data/seoContent';
+import { getSeoRoute } from '../data/seoContent';
 
 interface SeoLandingSectionsProps {
   currentPath: string;
@@ -22,6 +28,15 @@ interface SeoLandingSectionsProps {
 }
 
 const USE_CASES = [
+  {
+    path: '/',
+    icon: Sparkles,
+    accent: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+    title: 'All-in-One AI Background Remover',
+    tag: 'Main Free HD Studio',
+    description:
+      'Remove backgrounds from portraits, products, and graphics in sub-seconds directly inside your browser with zero signup.',
+  },
   {
     path: '/private-background-remover',
     icon: Lock,
@@ -36,14 +51,14 @@ const USE_CASES = [
     icon: ShoppingBag,
     accent: 'text-blue-600 bg-blue-50 border-blue-100',
     title: 'E-Commerce Product Cutouts',
-    tag: 'Amazon & Shopify',
+    tag: 'Amazon & Shopify #FFFFFF',
     description:
       'Isolate products onto pure #FFFFFF or transparent backgrounds with realistic drop shadows and bulk ZIP batch exports.',
   },
   {
     path: '/portrait-edge-studio',
     icon: Camera,
-    accent: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+    accent: 'text-violet-600 bg-violet-50 border-violet-100',
     title: 'Portraits, Hair & Fur',
     tag: 'Manual Edge Refiner',
     description:
@@ -53,10 +68,55 @@ const USE_CASES = [
     path: '/youtube-thumbnail-cutout',
     icon: Youtube,
     accent: 'text-rose-600 bg-rose-50 border-rose-100',
-    title: 'Thumbnails & Creators',
+    title: 'YouTube Thumbnail Cutouts',
     tag: 'Ctrl+V Paste Ready',
     description:
-      'Paste screenshots straight from your clipboard, boost pop with AI color grading, and export crisp transparent WebP or PNG.',
+      'Paste screenshots straight from your clipboard, boost contrast with AI color grading, and export crisp transparent WebP or PNG.',
+  },
+  {
+    path: '/passport-photo-background-remover',
+    icon: IdCard,
+    accent: 'text-sky-600 bg-sky-50 border-sky-100',
+    title: 'Passport & ID Background Changer',
+    tag: 'Pure White & Official Blue',
+    description:
+      'Clean visa, passport, and employee badge portraits onto pure white (#FFFFFF) or studio blue offline inside your browser.',
+  },
+  {
+    path: '/logo-transparent-background-maker',
+    icon: Stamp,
+    accent: 'text-amber-600 bg-amber-50 border-amber-100',
+    title: 'Transparent Logo & Signature Maker',
+    tag: 'Crisp Alpha PNG',
+    description:
+      'Strip white or solid rectangles from company logos, icons, and scanned signatures to export crisp 32-bit transparent PNGs.',
+  },
+  {
+    path: '/car-dealership-background-remover',
+    icon: Car,
+    accent: 'text-slate-700 bg-slate-100 border-slate-200',
+    title: 'Car & Vehicle Dealership Studio',
+    tag: 'Automotive Cutouts',
+    description:
+      'Remove busy parking-lot clutter while keeping glossy vehicle paint reflections, alloy wheels, and tinted glass intact.',
+  },
+  {
+    path: '/batch-background-remover',
+    icon: Layers,
+    accent: 'text-cyan-600 bg-cyan-50 border-cyan-100',
+    title: 'Bulk Batch ZIP Background Remover',
+    tag: 'Multiple Photos at Once',
+    description:
+      'Queue multiple product or catalog photos at once, apply consistent white or transparent backdrops, and download one ZIP.',
+  },
+  {
+    path: '/alternatives/remove-bg-alternative',
+    icon: Scale,
+    accent: 'text-teal-600 bg-teal-50 border-teal-100',
+    title: 'Free remove.bg Alternative',
+    tag: 'Unlimited HD • Zero Credits',
+    description:
+      'Skip preview caps and per-image credits with full-resolution PNG exports, manual brush controls, and total privacy.',
   },
 ];
 
@@ -94,6 +154,11 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
   onOpenBatch,
 }) => {
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(0);
+  const activeRoute = getSeoRoute(currentPath);
+
+  useEffect(() => {
+    setOpenFaqIdx(0);
+  }, [currentPath]);
 
   const handleRouteClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
     e.preventDefault();
@@ -102,6 +167,72 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
 
   return (
     <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 mt-10 sm:mt-16 space-y-14 sm:space-y-20">
+      {/* Section 0: Active Workflow SEO Overview & Checklist */}
+      <section
+        aria-labelledby="workflow-overview-heading"
+        className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-2xs"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-3">
+            <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-blue-600">
+              {activeRoute.shortTag}
+            </span>
+            <h2
+              id="workflow-overview-heading"
+              className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight"
+            >
+              {activeRoute.overviewTitle}
+            </h2>
+            {activeRoute.overviewParagraphs.map((paragraph) => (
+              <p
+                key={paragraph}
+                className="text-xs sm:text-sm text-slate-600 leading-relaxed"
+              >
+                {paragraph}
+              </p>
+            ))}
+          </div>
+
+          <div className="lg:col-span-5 bg-slate-50/80 rounded-2xl border border-slate-200/70 p-4 sm:p-5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">
+              Key Capabilities Included Free
+            </h3>
+            <ul className="space-y-2.5">
+              {activeRoute.highlights.map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 pt-3 border-t border-slate-200/70 flex flex-wrap gap-3 text-xs font-semibold">
+              <a
+                href="/batch-background-remover"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigateRoute('/batch-background-remover');
+                }}
+                className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+              >
+                <span>Bulk Batch Remover</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={onOpenBatch}
+                className="text-indigo-600 hover:text-indigo-700 cursor-pointer"
+              >
+                Open Batch Queue Tab
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Section 1: How 100% On-Device Background Removal Works */}
       <section aria-labelledby="how-it-works-heading">
         <div className="text-center max-w-2xl mx-auto mb-8">
@@ -128,15 +259,19 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               Drop, Browse, or Paste (Ctrl+V)
             </h3>
             <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
-              Load any JPG, PNG, WebP, or AVIF photo up to 15MB—or switch to{' '}
-              <button
-                type="button"
-                onClick={onOpenBatch}
-                className="text-blue-600 font-semibold hover:underline cursor-pointer"
+              Load any JPG, PNG, WebP, or AVIF photo up to 15MB—or switch to the{' '}
+              <a
+                href="/batch-background-remover"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigateRoute('/batch-background-remover');
+                  onOpenBatch();
+                }}
+                className="text-blue-600 font-semibold hover:underline"
               >
-                Batch Studio
-              </button>{' '}
-              to process multiple product shots together.
+                Batch Background Remover
+              </a>{' '}
+              to process multiple product shots together as a ZIP.
             </p>
           </article>
 
@@ -163,7 +298,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               <span className="text-[11px] font-bold text-slate-400">STEP 03</span>
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
-              Refine Edges & Export Lossless
+              Refine Edges &amp; Export Lossless
             </h3>
             <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
               Touch up fine hair with Erase/Restore brushes, swap backgrounds or add drop shadows, and download full-resolution PNG or WebP files.
@@ -172,7 +307,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
         </div>
       </section>
 
-      {/* Section 2: Vertical Use-Case Pillar Cards */}
+      {/* Section 2: Complete 10-Route Workflow Pillar Grid */}
       <section aria-labelledby="use-cases-heading">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
           <div>
@@ -180,10 +315,10 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               id="use-cases-heading"
               className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight"
             >
-              Built for Photographers, Sellers & Creators
+              Specialized Background Removal Workflows
             </h2>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              Select a specialized workflow to tailor the studio experience.
+              Explore tailored presets for passport IDs, transparent logos, car listings, e-commerce, and bulk batches.
             </p>
           </div>
 
@@ -206,6 +341,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                 key={item.path}
                 href={item.path}
                 onClick={(e) => handleRouteClick(e, item.path)}
+                aria-current={isActive ? 'page' : undefined}
                 className={`group block rounded-2xl border p-5 sm:p-6 transition-all bg-white ${
                   isActive
                     ? 'border-blue-500 ring-2 ring-blue-100 shadow-sm'
@@ -310,7 +446,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
         </div>
       </section>
 
-      {/* Section 4: Frequently Asked Questions (Matches FAQPage JSON-LD 1:1) */}
+      {/* Section 4: Frequently Asked Questions (Matches FAQPage JSON-LD 1:1 per route) */}
       <section aria-labelledby="faq-heading" className="pb-2">
         <div className="text-center max-w-2xl mx-auto mb-7">
           <h2
@@ -320,12 +456,12 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
             Frequently Asked Questions
           </h2>
           <p className="mt-1.5 text-xs sm:text-sm text-slate-500">
-            Everything you need to know about on-device privacy, formats, and edge precision.
+            Answers about on-device privacy, HD formats, and {activeRoute.navLabel.toLowerCase()}.
           </p>
         </div>
 
         <div className="max-w-3xl mx-auto space-y-2.5">
-          {SEO_FAQS.map((faq, idx) => {
+          {activeRoute.faqs.map((faq, idx) => {
             const isOpen = openFaqIdx === idx;
             return (
               <div
@@ -348,7 +484,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                   />
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-4 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100/80 mt-0.5 pt-3">
+                  <div className="px-5 pb-4 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100/80 mt-0.5 pt-3">
                     {faq.answer}
                   </div>
                 )}

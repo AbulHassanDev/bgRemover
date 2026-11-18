@@ -274,6 +274,38 @@ export default function App() {
     processSingleImage(url, file.name, file.size, file.type);
   };
 
+  const handleBatchFilesSelected = (files: File[]) => {
+    const availableSlots = Math.max(0, 10 - batchQueue.length);
+    if (availableSlots === 0) {
+      addToast('Batch queue limit (10 images) reached. Clear items to add more.', 'info');
+      setActiveTab('batch');
+      return;
+    }
+    if (files.length > availableSlots) {
+      addToast(`Added ${availableSlots} images (batch queue limit is 10 at a time).`, 'info');
+    }
+
+    const newItems: ImageItem[] = files.slice(0, availableSlots).map((file) => ({
+      id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      originalUrl: URL.createObjectURL(file),
+      processedUrl: null,
+      maskDataUrl: null,
+      status: 'idle',
+      progress: 0,
+      progressStage: 'Queued',
+      dimensions: { width: 0, height: 0 },
+      error: null,
+    }));
+
+    setQueue((prev) => [...prev, ...newItems]);
+    setActiveTab('batch');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    addToast(`Queued ${newItems.length} image${newItems.length === 1 ? '' : 's'} in Batch Studio.`, 'success');
+  };
+
   const handleSampleSelected = async (sample: SampleImage) => {
     processSingleImage(sample.url, `${sample.title}.jpg`, 1024 * 1024, 'image/jpeg');
   };
@@ -534,6 +566,11 @@ export default function App() {
               <>
                 <HeroDropzone
                   onFileSelected={handleFileSelected}
+                  onBatchFilesSelected={handleBatchFilesSelected}
+                  onOpenBatch={() => {
+                    setActiveTab('batch');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   onSampleSelected={handleSampleSelected}
                   onError={(msg) => addToast(msg, 'error')}
                   isLoading={false}

@@ -312,7 +312,11 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
                 >
                   <img
                     src={cutoutPreviewUrl}
-                    alt="Cutout subject preview"
+                    alt="Live cutout subject preview on solid background"
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain pointer-events-none"
                     crossOrigin="anonymous"
                   />
@@ -447,7 +451,11 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
                 >
                   <img
                     src={cutoutPreviewUrl}
-                    alt="Cutout subject preview"
+                    alt="Live cutout subject preview on gradient background"
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain pointer-events-none"
                     crossOrigin="anonymous"
                   />
@@ -565,7 +573,11 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
             >
               <img
                 src={stock.thumbnail}
-                alt={stock.title}
+                alt={`${stock.title} studio backdrop preset`}
+                width={240}
+                height={135}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 crossOrigin="anonymous"
               />

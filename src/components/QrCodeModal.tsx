@@ -154,7 +154,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                   <img
                     id="mobile-qr-code-img"
                     src={qrDataUrl}
-                    alt="Scan to download on mobile"
+                    alt="Scan QR code to download cutout on mobile"
+                    width={240}
+                    height={240}
                     className="w-52 h-52 sm:w-60 sm:h-60 object-contain rounded-lg"
                   />
 
@@ -172,7 +174,9 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                     {shareInfo.previewUrl ? (
                       <img
                         src={shareInfo.previewUrl}
-                        alt="Preview"
+                        alt={`Thumbnail preview for ${shareInfo.fileName}`}
+                        width={40}
+                        height={40}
                         className="w-10 h-10 rounded-lg object-contain bg-slate-200/60 p-0.5 border border-slate-200 shrink-0"
                       />
                     ) : (

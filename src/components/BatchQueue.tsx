@@ -321,7 +321,11 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
                 <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 relative">
                   <img
                     src={item.originalUrl}
-                    alt={item.name}
+                    alt={`Original photo: ${item.name}`}
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                   <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-bold text-center py-0.5">
@@ -335,7 +339,11 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
                     <>
                       <img
                         src={item.processedUrl}
-                        alt="Cutout"
+                        alt={`Background removed cutout: ${item.name}`}
+                        width={64}
+                        height={64}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-contain"
                       />
                       <span className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-white text-[8px] font-bold text-center py-0.5">

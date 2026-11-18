@@ -656,6 +656,8 @@ export const CropModal: React.FC<CropModalProps> = ({
                   ref={imageRef}
                   src={processedUrl}
                   alt="Crop preview subject"
+                  width={dimensions?.width || undefined}
+                  height={dimensions?.height || undefined}
                   className="max-h-[62vh] max-w-[80vw] object-contain block pointer-events-none select-none"
                   draggable={false}
                 />
