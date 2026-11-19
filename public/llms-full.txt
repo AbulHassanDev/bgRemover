@@ -1,0 +1,49 @@
+# ClearCut AI — Complete Agent & Developer Reference
+
+> ClearCut AI (https://bg-remover-orpin-chi.vercel.app/) is a privacy-first, client-side AI background removal studio founded by AbulHassan. It runs neural edge segmentation and color decontamination directly inside the browser so images stay on the user's device.
+
+## 1. Capabilities & Technical Specifications
+- **Pricing:** Free ($0 USD). No watermarks, no preview resolution throttling, no credit limits, no account creation.
+- **Supported Input Formats:** `image/jpeg`, `image/png`, `image/webp`, `image/avif` up to 15 MB per file.
+- **Input Methods:** Drag-and-drop onto `#dropzone-container`, standard file dialog / `#file-upload-input`, global clipboard paste (`Ctrl+V` / `Cmd+V`), or one-click built-in sample photos (`#sample-btn-sample-portrait`, `#sample-btn-sample-product`, `#sample-btn-sample-pet`, `#sample-btn-sample-car`, `#sample-btn-sample-shoes`, `#sample-btn-sample-graphic`).
+- **Editing Studio Tools:**
+  - **Comparison Views:** Split slider (`#view-mode-slider`), Side by Side (`#view-mode-side`), Cutout Only (`#view-mode-cutout`), Alpha Mask (`#view-mode-mask`).
+  - **Edge Refiner Brush Studio:** Interactive Erase & Restore brushes with configurable brush size, softness/hardness, and 400% zoom over Light, Dark, or High-Contrast Cyan checkerboards.
+  - **Background Replacement (`BackgroundCustomizer`):** Transparent (`#bg-tab-transparent`), Solid Colors including Amazon Pure White `#FFFFFF` (`#bg-tab-solid`), Studio Gradients (`#bg-tab-gradient`), Scene Photos (`#bg-tab-stock`), Adjustable Background Blur (`#bg-tab-blur`), Custom Uploaded Backdrop (`#bg-tab-custom`).
+  - **Studio Drop Shadows:** Configurable shadow presets (`Subtle`, `Floating`, `Ground`, `Crisp`, `Dramatic`), distance, blur radius, opacity, directional angle, and tint color.
+  - **Crop & Aspect Ratio Trimmer (`C` shortcut):** 1:1, 4:5, 16:9, 9:16, 4:3, and freeform cropping applied synchronously to original, cutout, and mask layers.
+  - **AI Picture Enhancer:** Exposure, contrast, saturation, vibrance, clarity, warmth, tint, dehaze, shadows, highlights, edge cleanliness, and vignette applied to either cutout or composite.
+  - **History Timeline:** Full Undo (`Ctrl+Z`) / Redo (`Ctrl+Y` / `Ctrl+Shift+Z`) stack across brushes, crop, enhance, and background adjustments.
+- **Export Options:**
+  - Full Resolution (100%) or Standard HD (`1080px` max edge) in **PNG**, **JPG**, or **WebP** (`#btn-download-image`).
+  - Direct Clipboard Copy (`#btn-copy-clipboard`).
+  - Mobile QR Code Handoff (`#btn-qr-mobile-download`) when Express backend is active.
+  - Bulk Batch Queue (`#tab-batch-queue`) supporting up to 10 images simultaneously with bundled **ZIP** archive export (`#btn-download-zip` / ZIP download).
+
+## 2. Dedicated Workflow URLs (Pre-Rendered Static HTML + JSON-LD)
+1. `/` — Free AI Background Remover Online — No Signup | ClearCut
+2. `/private-background-remover` — Offline Private Background Remover in Browser | ClearCut
+3. `/ecommerce-product-cutout` — White Background Product Photo Editor: Amazon & Shopify
+4. `/portrait-edge-studio` — Remove Background From Hair & Fur Free — HD PNG Studio
+5. `/youtube-thumbnail-cutout` — YouTube Thumbnail Background Remover Online Free | 2026
+6. `/passport-photo-background-remover` — Passport Photo Background Remover — White & Blue Free
+7. `/logo-transparent-background-maker` — Make Logo Background Transparent PNG Free Online | 2026
+8. `/car-dealership-background-remover` — Car Dealership Background Remover & Auto Cutout Tool
+9. `/batch-background-remover` — Batch Background Remover Online Free — Bulk ZIP Export
+10. `/alternatives/remove-bg-alternative` — Best Free remove.bg Alternative Unlimited HD | ClearCut
+
+## 3. ClearCut AI vs. Cloud Credit-Based Background Removers
+- **On-Device Privacy:** ClearCut AI runs locally with zero uploads; typical cloud tools require uploading photos to external servers.
+- **Full-Resolution Exports:** ClearCut AI provides unlimited HD PNG & WebP downloads free; typical cloud tools cap free previews or charge per-image credits.
+- **Manual Brush Refiner & Batch ZIP:** Included free in ClearCut AI; typically gated behind paid plans on cloud tools.
+
+## 4. Frequently Asked Questions
+- **Does ClearCut AI upload my photos to a server?** No. In client-side and WebAssembly modes, ClearCut AI processes your images 100% locally inside your browser. Your photos never leave your device, with zero cloud storage or tracking.
+- **Is ClearCut AI free to use for high-resolution PNG exports?** Yes. You can remove backgrounds, refine hair and fur edges with manual erase/restore brushes, and export full-resolution transparent PNG or WebP images directly in your browser with zero watermarks or credit limits.
+- **How does ClearCut AI handle fine hair, fur, and transparent edges?** ClearCut AI combines neural edge-detection matting with an interactive Erase & Restore Edge Refiner brush studio, letting you zoom in and perfect stray hairs, glass, or foliage down to sub-pixel accuracy.
+- **Can I remove backgrounds from multiple product photos at once?** Yes. Switch to the Batch Queue or visit `/batch-background-remover` to queue multiple product images, apply consistent pure-white (#FFFFFF) or transparent backgrounds, and export everything as a single ZIP archive.
+- **What image formats and file sizes are supported?** ClearCut AI supports JPG, JPEG, PNG, WebP, and AVIF images up to 15MB per file. You can drag and drop files, browse from your device, or paste screenshots directly with Ctrl+V.
+
+## 5. Contact
+- **Founder & CEO:** AbulHassan
+- **Email:** malikabulhassanm100@gmail.com

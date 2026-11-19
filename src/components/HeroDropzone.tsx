@@ -169,10 +169,12 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
       >
         <input
           ref={fileInputRef}
+          id="file-upload-input"
           type="file"
+          aria-label="Upload image file for background removal"
           multiple={isBatchPage}
           accept="image/jpeg,image/png,image/webp,image/avif"
-          className="hidden"
+          className="sr-only"
           onChange={(e) => {
             if (e.target.files && e.target.files.length > 0) {
               validateAndProcessFiles(Array.from(e.target.files));

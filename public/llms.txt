@@ -1,0 +1,34 @@
+# ClearCut AI
+
+> Free, 100% private, browser-native AI background remover and precision edge studio. Remove image backgrounds in full HD with zero server uploads, zero signup, and instant transparent PNG, WebP, or bulk ZIP exports.
+
+Canonical URL: https://bg-remover-orpin-chi.vercel.app/
+Sitemap: https://bg-remover-orpin-chi.vercel.app/sitemap.xml
+Full Documentation: https://bg-remover-orpin-chi.vercel.app/llms-full.txt
+
+## Core Facts
+- **Price:** $0 (100% free, unlimited full-resolution downloads, no credits or watermarks)
+- **Account Required:** None (no signup, no login)
+- **Privacy Architecture:** On-device WebAssembly & neural client processing (zero image uploads in default/local modes)
+- **Supported Inputs:** JPG, JPEG, PNG, WebP, AVIF (up to 15 MB per file; drag-and-drop, file picker, or Ctrl+V clipboard paste)
+- **Supported Exports:** Transparent 32-bit PNG, JPG, WebP, Copy PNG to Clipboard, Mobile QR transfer link, and Batch ZIP archive (up to 10 images per batch)
+- **Built-in Editing Tools:** Split Comparison Slider, Erase & Restore Brush Edge Refiner, Solid/Gradient/Scene/Blur/Custom Background Replacement, Realistic Drop Shadows, Canvas Crop & Aspect Ratio presets, AI Picture Enhancer, Global Undo/Redo
+
+## Workflow Pages
+- [AI Background Remover (Main Studio)](https://bg-remover-orpin-chi.vercel.app/): All-in-one free HD browser background remover with zero signup.
+- [Offline Private Background Remover](https://bg-remover-orpin-chi.vercel.app/private-background-remover): 100% client-side in-browser privacy mode with zero server uploads.
+- [E-Commerce Product Cutout Editor](https://bg-remover-orpin-chi.vercel.app/ecommerce-product-cutout): Pure white (#FFFFFF) Amazon, Shopify & Etsy product photo maker with drop shadows.
+- [Portrait, Hair & Fur Edge Studio](https://bg-remover-orpin-chi.vercel.app/portrait-edge-studio): Fine hair, pet fur, and glass cutout matting with manual Erase & Restore brushes.
+- [YouTube Thumbnail Cutout Maker](https://bg-remover-orpin-chi.vercel.app/youtube-thumbnail-cutout): Clipboard Ctrl+V screenshot paste, AI color boost, and 16:9 / 9:16 exports.
+- [Passport & ID Background Remover](https://bg-remover-orpin-chi.vercel.app/passport-photo-background-remover): Offline white (#FFFFFF) and official blue passport, visa, and ID background changer.
+- [Transparent Logo & Signature Maker](https://bg-remover-orpin-chi.vercel.app/logo-transparent-background-maker): Strip solid white or boxy backgrounds from logos, stamps, and signatures into crisp alpha PNGs.
+- [Car Dealership Background Remover](https://bg-remover-orpin-chi.vercel.app/car-dealership-background-remover): Isolate vehicles cleanly while preserving metallic paint reflections, wheels, and tinted glass.
+- [Batch ZIP Background Remover](https://bg-remover-orpin-chi.vercel.app/batch-background-remover): Process up to 10 images at once in-browser and export all HD PNG cutouts as one ZIP file.
+- [Free remove.bg Alternative](https://bg-remover-orpin-chi.vercel.app/alternatives/remove-bg-alternative): Unlimited full-HD exports with zero per-image credit paywalls.
+
+## Interactive Agent Quick-Start (DOM & URL Actions)
+- **Open Batch Queue Directly:** Append `?tab=batch` (e.g., `https://bg-remover-orpin-chi.vercel.app/?tab=batch`) or click `#tab-batch-queue`
+- **Auto-Run Sample Image:** Append `?sample=sample-portrait` (also `sample-product`, `sample-pet`, `sample-car`, `sample-shoes`, `sample-graphic`)
+- **Upload File Input:** `#file-upload-input` (`<input type="file">`) or click `#dropzone-container`
+- **Export / Download:** `#btn-download-image`, `#btn-copy-clipboard`, `#btn-qr-mobile-download`
+- **WebMCP:** Registers structured tools on `navigator.modelContext` when supported by the browser agent runtime.

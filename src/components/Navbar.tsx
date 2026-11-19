@@ -76,6 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             id="tab-single-editor"
+            aria-pressed={activeTab === 'editor'}
             onClick={() => setActiveTab('editor')}
             className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'editor'
@@ -83,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ImageIcon className="w-3.5 h-3.5" />
+            <ImageIcon className="w-3.5 h-3.5" aria-hidden="true" />
             <span className="hidden xs:inline">Studio</span>
             <span className="xs:hidden">Edit</span>
           </button>
@@ -91,6 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             id="tab-batch-queue"
+            aria-pressed={activeTab === 'batch'}
             onClick={() => setActiveTab('batch')}
             className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
               activeTab === 'batch'
@@ -147,6 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               title="Light Checkerboard Pattern"
               aria-label="Light Checkerboard Pattern"
+              aria-pressed={bgSettings.checkerPattern === 'checker-light'}
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-light' }))
               }
@@ -162,6 +165,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               title="Dark Checkerboard Pattern"
               aria-label="Dark Checkerboard Pattern"
+              aria-pressed={bgSettings.checkerPattern === 'checker-dark'}
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-dark' }))
               }
@@ -177,6 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               title="High-Contrast Cyan Grid"
               aria-label="High-Contrast Cyan Grid"
+              aria-pressed={bgSettings.checkerPattern === 'checker-contrast'}
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-contrast' }))
               }

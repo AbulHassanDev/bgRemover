@@ -224,6 +224,9 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
           {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
             <button
               key={fmt}
+              type="button"
+              id={`export-format-${fmt}`}
+              aria-pressed={exportSettings.format === fmt}
               onClick={() => {
                 setExportSettings((p) => ({ ...p, format: fmt }));
                 setQrDataUrl(null);
@@ -244,6 +247,8 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
           <span className="font-semibold text-slate-700">Export Scale</span>
           <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             <button
+              type="button"
+              aria-pressed={exportSettings.resolution === 'original'}
               onClick={() => {
                 setExportSettings((p) => ({ ...p, resolution: 'original' }));
                 setQrDataUrl(null);
@@ -257,6 +262,8 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
               Full Res (100%)
             </button>
             <button
+              type="button"
+              aria-pressed={exportSettings.resolution === 'standard'}
               onClick={() => {
                 setExportSettings((p) => ({ ...p, resolution: 'standard' }));
                 setQrDataUrl(null);
@@ -276,12 +283,13 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
         <div className="flex flex-col sm:flex-row gap-2 pt-2">
           {/* Main Download */}
           <button
+            type="button"
             id="btn-download-image"
             onClick={handleDownload}
             disabled={isExporting}
             className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-200 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4" aria-hidden="true" />
             <span>
               {isExporting ? 'Generating...' : `Download ${exportSettings.format.toUpperCase()}`}
             </span>
@@ -289,28 +297,30 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({
 
           {/* QR Code for Mobile Download */}
           <button
+            type="button"
             id="btn-qr-mobile-download"
             onClick={handleOpenQrModal}
             disabled={isExporting || isGeneratingQr}
             className="py-3 px-3.5 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs group"
             title="Scan QR code with your phone to download directly to your mobile device"
           >
-            <QrCode className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+            <QrCode className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" aria-hidden="true" />
             <span className="hidden xs:inline">Mobile QR</span>
             <span className="xs:hidden">QR</span>
           </button>
 
           {/* Copy PNG Clipboard */}
           <button
+            type="button"
             id="btn-copy-clipboard"
             onClick={handleCopyClipboard}
             className="py-3 px-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
             title="Copy PNG to clipboard"
           >
             {copied ? (
-              <Check className="w-4 h-4 text-emerald-600" />
+              <Check className="w-4 h-4 text-emerald-600" aria-hidden="true" />
             ) : (
-              <Clipboard className="w-4 h-4 text-slate-500" />
+              <Clipboard className="w-4 h-4 text-slate-500" aria-hidden="true" />
             )}
             <span className="hidden xs:inline">{copied ? 'Copied!' : 'Copy PNG'}</span>
           </button>

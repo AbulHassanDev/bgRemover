@@ -29,6 +29,19 @@
       ]
     },
     {
+      "source": "/llms(?:-full)?\\.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=3600"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -52,7 +65,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|images/|assets/|robots\\.txt|sitemap\\.xml|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
+      "source": "/((?!api/|images/|assets/|robots\\.txt|sitemap\\.xml|llms(?:-full)?\\.txt|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
       "destination": "/index.html"
     }
   ]

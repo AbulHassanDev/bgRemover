@@ -169,13 +169,15 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
           <Palette className="w-4 h-4 text-indigo-600" />
           <h3 className="text-xs sm:text-sm font-bold text-slate-900">Background Replacement</h3>
         </div>
-        <span className="text-[10px] sm:text-xs text-slate-400">Backdrop customization</span>
+        <span className="text-[10px] sm:text-xs text-slate-600">Backdrop customization</span>
       </div>
 
       {/* Category Tabs - Fully responsive grid */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80 text-[11px] sm:text-xs font-semibold">
         <button
+          type="button"
           id="bg-tab-transparent"
+          aria-pressed={bgSettings.type === 'transparent'}
           onClick={() => setType('transparent')}
           className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-lg transition-all ${
             bgSettings.type === 'transparent'
@@ -188,7 +190,9 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
         </button>
 
         <button
+          type="button"
           id="bg-tab-solid"
+          aria-pressed={bgSettings.type === 'solid'}
           onClick={() => setType('solid')}
           className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-lg transition-all ${
             bgSettings.type === 'solid'
@@ -201,7 +205,9 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
         </button>
 
         <button
+          type="button"
           id="bg-tab-gradient"
+          aria-pressed={bgSettings.type === 'gradient'}
           onClick={() => setType('gradient')}
           className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-lg transition-all ${
             bgSettings.type === 'gradient'
@@ -209,12 +215,14 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-500 shrink-0" />
+          <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-pink-500 shrink-0" aria-hidden="true" />
           <span className="truncate">Gradient</span>
         </button>
 
         <button
+          type="button"
           id="bg-tab-stock"
+          aria-pressed={bgSettings.type === 'stock'}
           onClick={() => setType('stock')}
           className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-lg transition-all ${
             bgSettings.type === 'stock'
@@ -222,12 +230,14 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500 shrink-0" />
+          <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-500 shrink-0" aria-hidden="true" />
           <span className="truncate">Scenes</span>
         </button>
 
         <button
+          type="button"
           id="bg-tab-blur"
+          aria-pressed={bgSettings.type === 'blur'}
           onClick={() => setType('blur')}
           className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-1 sm:px-2 rounded-lg transition-all ${
             bgSettings.type === 'blur'
@@ -235,12 +245,14 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Droplets className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-500 shrink-0" />
+          <Droplets className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-500 shrink-0" aria-hidden="true" />
           <span className="truncate">Blur</span>
         </button>
 
         <button
+          type="button"
           id="bg-tab-custom"
+          aria-pressed={bgSettings.type === 'custom'}
           onClick={() => {
             setType('custom');
             if (!bgSettings.customImageUrl) {
@@ -253,7 +265,7 @@ export const BackgroundCustomizer: React.FC<BackgroundCustomizerProps> = ({
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-purple-500 shrink-0" />
+          <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-purple-500 shrink-0" aria-hidden="true" />
           <span className="truncate">Upload</span>
         </button>
       </div>

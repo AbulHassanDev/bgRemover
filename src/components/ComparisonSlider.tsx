@@ -170,7 +170,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
         {/* View Mode Toggle Buttons */}
         <div className="flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-xl border border-slate-200 text-xs font-semibold overflow-x-auto max-w-full">
           <button
+            type="button"
             id="view-mode-slider"
+            aria-pressed={viewMode === 'slider'}
             onClick={() => setViewMode('slider')}
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all shrink-0 ${
               viewMode === 'slider'
@@ -178,13 +180,15 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <SplitSquareVertical className="w-3.5 h-3.5" />
+            <SplitSquareVertical className="w-3.5 h-3.5" aria-hidden="true" />
             <span className="hidden xs:inline">Split</span>
             <span className="xs:hidden">Split</span>
           </button>
 
           <button
+            type="button"
             id="view-mode-side"
+            aria-pressed={viewMode === 'side-by-side'}
             onClick={() => setViewMode('side-by-side')}
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all shrink-0 ${
               viewMode === 'side-by-side'
@@ -192,13 +196,15 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Columns className="w-3.5 h-3.5" />
+            <Columns className="w-3.5 h-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">Side by Side</span>
             <span className="sm:hidden">Side</span>
           </button>
 
           <button
+            type="button"
             id="view-mode-cutout"
+            aria-pressed={viewMode === 'cutout-only'}
             onClick={() => setViewMode('cutout-only')}
             className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all shrink-0 ${
               viewMode === 'cutout-only'
@@ -206,13 +212,15 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Cutout</span>
           </button>
 
           {maskUrl && (
             <button
+              type="button"
               id="view-mode-mask"
+              aria-pressed={viewMode === 'mask-only'}
               onClick={() => setViewMode('mask-only')}
               className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg transition-all shrink-0 ${
                 viewMode === 'mask-only'
@@ -220,7 +228,7 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Mask</span>
             </button>
           )}
@@ -231,7 +239,9 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
           {onUndo && onRedo && (
             <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
               <button
+                type="button"
                 id="btn-slider-quick-undo"
+                aria-label="Undo edit"
                 onClick={onUndo}
                 disabled={!canUndo}
                 title="Undo edit (Ctrl+Z / ⌘Z)"
@@ -241,10 +251,12 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
                     : 'text-slate-300 cursor-not-allowed opacity-40'
                 }`}
               >
-                <Undo2 className="w-3.5 h-3.5" />
+                <Undo2 className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
               <button
+                type="button"
                 id="btn-slider-quick-redo"
+                aria-label="Redo edit"
                 onClick={onRedo}
                 disabled={!canRedo}
                 title="Redo edit (Ctrl+Y / ⌘⇧Z)"

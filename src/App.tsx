@@ -22,6 +22,8 @@ import {
   ModalLoadingBackdrop,
 } from './components/LoadingSkeletons';
 import { getSeoRoute } from './data/seoContent';
+import { SAMPLE_IMAGES } from './data/presets';
+import { registerAgenticTools } from './utils/agentBridge';
 import { useEditHistory } from './hooks/useEditHistory';
 
 const ComparisonSlider = lazy(() =>
@@ -77,7 +79,10 @@ import {
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
-  const [activeTab, setActiveTab] = useState<AppTab>('editor');
+  const [activeTab, setActiveTab] = useState<AppTab>(() => {
+    if (typeof window === 'undefined') return 'editor';
+    return new URLSearchParams(window.location.search).get('tab') === 'batch' ? 'batch' : 'editor';
+  });
   const [currentImage, setCurrentImage] = useState<ImageItem | null>(null);
   const [batchQueue, setQueue] = useState<ImageItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('slider');
@@ -160,6 +165,7 @@ export default function App() {
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
   const studioPrefetchedRef = useRef(false);
+  const didHandleUrlParamsRef = useRef(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const prefetchStudioChunks = useCallback(() => {
@@ -552,6 +558,8 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPath(window.location.pathname || '/');
+      const params = new URLSearchParams(window.location.search);
+      setActiveTab(params.get('tab') === 'batch' ? 'batch' : 'editor');
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -627,6 +635,69 @@ export default function App() {
       el.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Agentic Browsing: URL ?sample=<id> deep-linking & progressive WebMCP tool bridge
+  const agentBridgeRef = useRef({
+    currentPath,
+    activeTab,
+    hasImage: Boolean(currentImage),
+    imageStatus: currentImage?.status ?? null,
+    batchCount: batchQueue.length,
+    navigateRoute: handleNavigateRoute,
+    openBatch: () => {
+      setActiveTab('batch');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    selectSample: handleSampleSelected,
+    resetStudio: handleResetToUpload,
+  });
+
+  useEffect(() => {
+    agentBridgeRef.current = {
+      currentPath,
+      activeTab,
+      hasImage: Boolean(currentImage),
+      imageStatus: currentImage?.status ?? null,
+      batchCount: batchQueue.length,
+      navigateRoute: handleNavigateRoute,
+      openBatch: () => {
+        setActiveTab('batch');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      selectSample: handleSampleSelected,
+      resetStudio: handleResetToUpload,
+    };
+  });
+
+  useEffect(() => {
+    if (didHandleUrlParamsRef.current || typeof window === 'undefined') return;
+    didHandleUrlParamsRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const sampleId = params.get('sample');
+    if (sampleId) {
+      const matched = SAMPLE_IMAGES.find((s) => s.id === sampleId);
+      if (matched) {
+        handleSampleSelected(matched);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return registerAgenticTools({
+      getState: () => ({
+        currentPath: agentBridgeRef.current.currentPath,
+        activeTab: agentBridgeRef.current.activeTab,
+        hasImage: agentBridgeRef.current.hasImage,
+        imageStatus: agentBridgeRef.current.imageStatus,
+        batchCount: agentBridgeRef.current.batchCount,
+      }),
+      navigateRoute: (path) => agentBridgeRef.current.navigateRoute(path),
+      openBatch: () => agentBridgeRef.current.openBatch(),
+      selectSample: (sample) => agentBridgeRef.current.selectSample(sample),
+      resetStudio: () => agentBridgeRef.current.resetStudio(),
+    });
+  }, []);
 
   const activeSeoRoute = getSeoRoute(currentPath);
 

@@ -455,6 +455,11 @@ function buildRouteSchemaGraph(route) {
       applicationSubCategory: 'PhotoEditing',
       operatingSystem: 'Web Browser (Chrome, Safari, Firefox, Edge)',
       browserRequirements: 'Requires WebAssembly and HTML5 Canvas',
+      isAccessibleForFree: true,
+      softwareHelp: {
+        '@type': 'CreativeWork',
+        url: `${BASE_URL}/llms.txt`,
+      },
       description: route.description,
       author: {
         '@type': 'Person',
