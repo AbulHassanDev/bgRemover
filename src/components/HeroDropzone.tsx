@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Clipboard, Sparkles, ShieldCheck, Zap, Layers } from 'lucide-react';
+import { Upload, Clipboard, Sparkles, ShieldCheck, Zap, Layers, Loader2 } from 'lucide-react';
 import { SampleImage } from '../types';
 import { SAMPLE_IMAGES } from '../data/presets';
 import { SeoRouteConfig, SEO_ROUTES } from '../data/seoContent';
@@ -11,6 +11,8 @@ interface HeroDropzoneProps {
   onSampleSelected: (sample: SampleImage) => void;
   onError: (msg: string) => void;
   isLoading?: boolean;
+  loadingSampleId?: string | null;
+  onPrefetchStudio?: () => void;
   seoRoute?: SeoRouteConfig;
 }
 
@@ -21,9 +23,13 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
   onSampleSelected,
   onError,
   isLoading = false,
+  loadingSampleId = null,
+  onPrefetchStudio,
   seoRoute = SEO_ROUTES['/'],
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [loadedThumbs, setLoadedThumbs] = useState<Record<string, boolean>>({});
+  const [failedThumbs, setFailedThumbs] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isBatchPage = seoRoute.path === '/batch-background-remover';
 
@@ -136,11 +142,26 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
       {/* Main Drag-and-Drop Area */}
       <div
         id="dropzone-container"
+        role="button"
+        tabIndex={0}
+        aria-busy={isLoading}
+        aria-label="Upload or drop image files to remove background"
         onDrop={handleDrop}
-        onDragOver={handleDragOver}
+        onDragOver={(e) => {
+          onPrefetchStudio?.();
+          handleDragOver(e);
+        }}
         onDragLeave={handleDragLeave}
+        onMouseEnter={() => onPrefetchStudio?.()}
+        onFocus={() => onPrefetchStudio?.()}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative group cursor-pointer border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center transition-all duration-200 bg-white/70 shadow-sm ${
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        className={`relative group cursor-pointer border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center transition-all duration-200 bg-white/70 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
           isDragOver
             ? 'border-indigo-500 bg-indigo-50/70 scale-[1.01] shadow-lg shadow-indigo-100'
             : 'border-slate-300 hover:border-indigo-400 hover:bg-slate-50/80'
@@ -169,7 +190,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
               ? 'Drag and drop one or multiple images here'
               : 'Drag and drop your image here'}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mb-3 sm:mb-4">
+          <p className="text-xs sm:text-sm text-slate-600 mb-3 sm:mb-4">
             or{' '}
             <span className="text-indigo-600 font-semibold underline underline-offset-2">
               browse files
@@ -187,7 +208,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             <span> to paste from clipboard</span>
           </div>
 
-          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4 text-[11px] sm:text-xs text-slate-400">
+          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4 text-[11px] sm:text-xs text-slate-600">
             <span>Supports JPG, PNG, WebP</span>
             <span>•</span>
             <span>Up to 15MB</span>
@@ -203,47 +224,82 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Try with sample images
           </span>
-          <span className="text-[11px] sm:text-xs text-slate-400">
+          <span className="text-[11px] sm:text-xs text-slate-600">
             (Test fine hair, complex shadows &amp; transparent fur)
           </span>
         </div>
 
         <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2.5 sm:gap-3">
-          {SAMPLE_IMAGES.map((sample) => (
-            <button
-              key={sample.id}
-              id={`sample-btn-${sample.id}`}
-              onClick={() => onSampleSelected(sample)}
-              disabled={isLoading}
-              className={`group relative flex flex-col items-start bg-white p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all text-left overflow-hidden cursor-pointer ${
-                seoRoute.recommendedSampleId === sample.id
-                  ? 'border-blue-400 ring-2 ring-blue-100 shadow-sm'
-                  : 'border-slate-200 hover:border-indigo-400 hover:shadow-md'
-              }`}
-            >
-              <div className="w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 mb-1.5 sm:mb-2 relative">
-                <img
-                  src={sample.thumbnail}
-                  alt={`${sample.title} — ${sample.category} background removal sample`}
-                  width={200}
-                  height={200}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
-                  decoding="async"
-                  crossOrigin="anonymous"
-                />
-                <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 text-[9px] sm:text-[10px] font-bold bg-slate-900/80 backdrop-blur-xs text-white px-1.5 sm:px-2 py-0.5 rounded-full">
-                  {sample.category}
+          {SAMPLE_IMAGES.map((sample) => {
+            const isSampleLoading = isLoading && loadingSampleId === sample.id;
+            const isThumbLoaded = Boolean(loadedThumbs[sample.id]);
+            const isThumbFailed = Boolean(failedThumbs[sample.id]);
+
+            return (
+              <button
+                key={sample.id}
+                type="button"
+                id={`sample-btn-${sample.id}`}
+                onClick={() => onSampleSelected(sample)}
+                onMouseEnter={() => onPrefetchStudio?.()}
+                disabled={isLoading}
+                aria-busy={isSampleLoading}
+                className={`group relative flex flex-col items-start bg-white p-2 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all text-left overflow-hidden ${
+                  isLoading ? 'cursor-wait opacity-80' : 'cursor-pointer'
+                } ${
+                  seoRoute.recommendedSampleId === sample.id
+                    ? 'border-blue-400 ring-2 ring-blue-100 shadow-sm'
+                    : 'border-slate-200 hover:border-indigo-400 hover:shadow-md'
+                }`}
+              >
+                <div className="w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 mb-1.5 sm:mb-2 relative">
+                  {!isThumbLoaded && !isThumbFailed && (
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-slate-200/80 animate-pulse"
+                    />
+                  )}
+                  {isThumbFailed ? (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-100 text-[11px] font-semibold text-slate-600 px-2 text-center">
+                      {sample.category}
+                    </div>
+                  ) : (
+                    <img
+                      src={sample.thumbnail}
+                      alt={`${sample.title} — ${sample.category} background removal sample`}
+                      width={200}
+                      height={200}
+                      onLoad={() =>
+                        setLoadedThumbs((prev) => ({ ...prev, [sample.id]: true }))
+                      }
+                      onError={() =>
+                        setFailedThumbs((prev) => ({ ...prev, [sample.id]: true }))
+                      }
+                      className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${
+                        isThumbLoaded ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      decoding="async"
+                      crossOrigin="anonymous"
+                    />
+                  )}
+                  <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 text-[9px] sm:text-[10px] font-bold bg-slate-900/80 backdrop-blur-xs text-white px-1.5 sm:px-2 py-0.5 rounded-full">
+                    {sample.category}
+                  </span>
+                  {isSampleLoading && (
+                    <div className="absolute inset-0 bg-slate-900/45 flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 text-white animate-spin" aria-hidden="true" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-[11px] sm:text-xs font-bold text-slate-800 truncate w-full group-hover:text-indigo-600 transition-colors">
+                  {sample.title}
                 </span>
-              </div>
-              <span className="text-[11px] sm:text-xs font-bold text-slate-800 truncate w-full group-hover:text-indigo-600 transition-colors">
-                {sample.title}
-              </span>
-              <span className="text-[9px] sm:text-[10px] text-slate-400 truncate w-full">
-                {sample.difficulty}
-              </span>
-            </button>
-          ))}
+                <span className="text-[9px] sm:text-[10px] text-slate-600 truncate w-full">
+                  {isSampleLoading ? 'Loading sample...' : sample.difficulty}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -255,7 +311,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900">Sub-Second Processing</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-600 mt-0.5">
               Client &amp; browser-native AI segmentation with smooth edge feathering.
             </p>
           </div>
@@ -267,7 +323,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900">Fine Edge Refinement</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-600 mt-0.5">
               Interactive Erase &amp; Restore brush studio for hair &amp; transparent fabrics.
             </p>
           </div>
@@ -279,7 +335,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900">Privacy &amp; Lossless Export</h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-[11px] text-slate-600 mt-0.5">
               Full resolution PNG, WebP, and custom composited backgrounds free.
             </p>
           </div>

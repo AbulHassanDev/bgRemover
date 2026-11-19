@@ -1,5 +1,5 @@
-import React from 'react';
-import { Keyboard, X, Sparkles, Check } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Keyboard, X } from 'lucide-react';
 
 interface ShortcutsModalProps {
   isOpen: boolean;
@@ -7,6 +7,17 @@ interface ShortcutsModalProps {
 }
 
 export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const shortcuts = [
@@ -20,22 +31,32 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shortcuts-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+    >
       <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-200">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Keyboard className="w-4 h-4" />
+              <Keyboard className="w-4 h-4" aria-hidden="true" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">
-              Keyboard Shortcuts & Tips
+            <h3 id="shortcuts-modal-title" className="text-base font-bold text-slate-900">
+              Keyboard Shortcuts &amp; Tips
             </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+            aria-label="Close keyboard shortcuts dialog"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -55,8 +76,9 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
         </div>
 
         <button
+          type="button"
           onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors"
+          className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
         >
           Got it
         </button>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import {
   ImageItem,
   BackgroundSettings,
@@ -11,23 +11,52 @@ import {
 } from './types';
 import { Navbar } from './components/Navbar';
 import { HeroDropzone } from './components/HeroDropzone';
-import { ComparisonSlider } from './components/ComparisonSlider';
-import { EdgeRefinerModal } from './components/EdgeRefinerModal';
-import { BackgroundCustomizer } from './components/BackgroundCustomizer';
-import { ExportPanel } from './components/ExportPanel';
-import { BatchQueue } from './components/BatchQueue';
-import { ProcessingOverlay } from './components/ProcessingOverlay';
 import { ToastContainer, ToastMessage } from './components/Toast';
-import { ShortcutsModal } from './components/ShortcutsModal';
-import { ApiSettingsModal } from './components/ApiSettingsModal';
-import { EditHistoryControls } from './components/EditHistoryControls';
-import { CropModal } from './components/CropModal';
-import { AIEnhanceModal } from './components/AIEnhanceModal';
 import { Footer } from './components/Footer';
 import { SeoManager } from './components/SeoManager';
 import { SeoLandingSections } from './components/SeoLandingSections';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import {
+  StudioWorkspaceSkeleton,
+  BatchQueueSkeleton,
+  ModalLoadingBackdrop,
+} from './components/LoadingSkeletons';
 import { getSeoRoute } from './data/seoContent';
 import { useEditHistory } from './hooks/useEditHistory';
+
+const ComparisonSlider = lazy(() =>
+  import('./components/ComparisonSlider').then((m) => ({ default: m.ComparisonSlider }))
+);
+const EdgeRefinerModal = lazy(() =>
+  import('./components/EdgeRefinerModal').then((m) => ({ default: m.EdgeRefinerModal }))
+);
+const BackgroundCustomizer = lazy(() =>
+  import('./components/BackgroundCustomizer').then((m) => ({ default: m.BackgroundCustomizer }))
+);
+const ExportPanel = lazy(() =>
+  import('./components/ExportPanel').then((m) => ({ default: m.ExportPanel }))
+);
+const BatchQueue = lazy(() =>
+  import('./components/BatchQueue').then((m) => ({ default: m.BatchQueue }))
+);
+const ProcessingOverlay = lazy(() =>
+  import('./components/ProcessingOverlay').then((m) => ({ default: m.ProcessingOverlay }))
+);
+const ShortcutsModal = lazy(() =>
+  import('./components/ShortcutsModal').then((m) => ({ default: m.ShortcutsModal }))
+);
+const ApiSettingsModal = lazy(() =>
+  import('./components/ApiSettingsModal').then((m) => ({ default: m.ApiSettingsModal }))
+);
+const EditHistoryControls = lazy(() =>
+  import('./components/EditHistoryControls').then((m) => ({ default: m.EditHistoryControls }))
+);
+const CropModal = lazy(() =>
+  import('./components/CropModal').then((m) => ({ default: m.CropModal }))
+);
+const AIEnhanceModal = lazy(() =>
+  import('./components/AIEnhanceModal').then((m) => ({ default: m.AIEnhanceModal }))
+);
 import {
   removeBackgroundClient,
   loadImage,
@@ -126,7 +155,21 @@ export default function App() {
   const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [loadingSampleId, setLoadingSampleId] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
+  const studioPrefetchedRef = useRef(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const prefetchStudioChunks = useCallback(() => {
+    if (studioPrefetchedRef.current) return;
+    studioPrefetchedRef.current = true;
+    void import('./components/ProcessingOverlay');
+    void import('./components/ComparisonSlider');
+    void import('./components/BackgroundCustomizer');
+    void import('./components/ExportPanel');
+  }, []);
 
   const addToast = useCallback(
     (text: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -266,6 +309,8 @@ export default function App() {
           : null
       );
       addToast(err.message || 'Error removing background. Please retry.', 'error');
+    } finally {
+      setLoadingSampleId(null);
     }
   };
 
@@ -307,6 +352,7 @@ export default function App() {
   };
 
   const handleSampleSelected = async (sample: SampleImage) => {
+    setLoadingSampleId(sample.id);
     processSingleImage(sample.url, `${sample.title}.jpg`, 1024 * 1024, 'image/jpeg');
   };
 
@@ -511,7 +557,53 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Network connectivity resilience & idle chunk prefetching
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOffline(true);
+      addToast('You are offline — local image background removal continues working on your device.', 'info');
+    };
+    const handleOnline = () => {
+      setIsOffline(false);
+      addToast('Internet connection restored.', 'success');
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    let idleId: number | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (typeof win.requestIdleCallback === 'function') {
+      idleId = win.requestIdleCallback(() => prefetchStudioChunks(), { timeout: 3000 });
+    } else {
+      timerId = setTimeout(() => prefetchStudioChunks(), 2500);
+    }
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+      if (idleId !== null && typeof win.cancelIdleCallback === 'function') {
+        win.cancelIdleCallback(idleId);
+      }
+      if (timerId !== null) {
+        clearTimeout(timerId);
+      }
+    };
+  }, [addToast, prefetchStudioChunks]);
+
   const handleResetToUpload = () => {
+    if (
+      currentImage?.originalUrl?.startsWith('blob:') &&
+      !batchQueue.some((item) => item.originalUrl === currentImage.originalUrl)
+    ) {
+      URL.revokeObjectURL(currentImage.originalUrl);
+    }
+    setLoadingSampleId(null);
     clearHistory();
     setCurrentImage(null);
     setCompositedUrl(null);
@@ -540,7 +632,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-indigo-500 selection:text-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl focus:bg-blue-600 focus:text-white focus:text-xs focus:font-bold focus:shadow-lg"
+      >
+        Skip to studio
+      </a>
       <SeoManager pathname={currentPath} />
+
+      {isOffline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs font-semibold text-amber-900"
+        >
+          Offline mode active — local device background removal &amp; exports remain 100% functional.
+        </div>
+      )}
 
       {/* Navigation Bar */}
       <Navbar
@@ -557,35 +665,38 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col">
-        {/* TAB 1: Studio Editor */}
-        {activeTab === 'editor' && (
-          <>
-            {!currentImage ? (
-              /* Idle / Dropzone Hero View + Indexable SEO Landing Content */
-              <>
-                <HeroDropzone
-                  onFileSelected={handleFileSelected}
-                  onBatchFilesSelected={handleBatchFilesSelected}
-                  onOpenBatch={() => {
-                    setActiveTab('batch');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  onSampleSelected={handleSampleSelected}
-                  onError={(msg) => addToast(msg, 'error')}
-                  isLoading={false}
-                  seoRoute={activeSeoRoute}
-                />
-                <SeoLandingSections
-                  currentPath={activeSeoRoute.path}
-                  onNavigateRoute={handleNavigateRoute}
-                  onOpenBatch={() => {
-                    setActiveTab('batch');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                />
-              </>
-            ) : (
+      <main id="main-content" className="flex-1 flex flex-col">
+        <ErrorBoundary onReset={handleResetToUpload}>
+          {/* TAB 1: Studio Editor */}
+          {activeTab === 'editor' && (
+            <>
+              {!currentImage ? (
+                /* Idle / Dropzone Hero View + Indexable SEO Landing Content */
+                <>
+                  <HeroDropzone
+                    onFileSelected={handleFileSelected}
+                    onBatchFilesSelected={handleBatchFilesSelected}
+                    onOpenBatch={() => {
+                      setActiveTab('batch');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    onSampleSelected={handleSampleSelected}
+                    onError={(msg) => addToast(msg, 'error')}
+                    isLoading={loadingSampleId !== null}
+                    loadingSampleId={loadingSampleId}
+                    onPrefetchStudio={prefetchStudioChunks}
+                    seoRoute={activeSeoRoute}
+                  />
+                  <SeoLandingSections
+                    currentPath={activeSeoRoute.path}
+                    onNavigateRoute={handleNavigateRoute}
+                    onOpenBatch={() => {
+                      setActiveTab('batch');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  />
+                </>
+              ) : (
               /* Active Editing & Comparison Workspace */
               <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
                 {/* Top Action Bar */}
@@ -619,18 +730,20 @@ export default function App() {
                   {/* AI & Edge Matting Status Badge and Edit History Controls */}
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Global Undo / Redo & Timeline Stack */}
-                    <EditHistoryControls
-                      canUndo={canUndo}
-                      canRedo={canRedo}
-                      onUndo={undo}
-                      onRedo={redo}
-                      onJumpToStep={jumpToStep}
-                      onRevertToInitial={revertToInitial}
-                      history={history}
-                      historyIndex={historyIndex}
-                      undoDescription={undoDescription}
-                      redoDescription={redoDescription}
-                    />
+                    <Suspense fallback={null}>
+                      <EditHistoryControls
+                        canUndo={canUndo}
+                        canRedo={canRedo}
+                        onUndo={undo}
+                        onRedo={redo}
+                        onJumpToStep={jumpToStep}
+                        onRevertToInitial={revertToInitial}
+                        history={history}
+                        historyIndex={historyIndex}
+                        undoDescription={undoDescription}
+                        redoDescription={redoDescription}
+                      />
+                    </Suspense>
 
                     <button
                       id="btn-top-ai-enhance"
@@ -669,6 +782,7 @@ export default function App() {
                         )
                       }
                       title="Re-run AI background removal"
+                      aria-label="Re-run AI background removal"
                       className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0"
                     >
                       <RotateCcw className="w-4 h-4" />
@@ -714,69 +828,71 @@ export default function App() {
                 </div>
 
                 {/* Main Workspace Layout: Comparison Canvas on Left, Controls on Right */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  {/* Left 7 Columns: Canvas Comparison */}
-                  <div className={`lg:col-span-7 flex flex-col ${mobileSection !== 'canvas' ? 'hidden lg:flex' : ''}`}>
-                    <ComparisonSlider
-                      originalUrl={currentImage.originalUrl}
-                      processedUrl={currentImage.processedUrl || currentImage.originalUrl}
-                      maskUrl={currentImage.maskDataUrl}
-                      bgSettings={bgSettings}
-                      compositedUrl={compositedUrl}
-                      hoverBgPreview={hoverBgPreview}
-                      viewMode={viewMode}
-                      setViewMode={setViewMode}
-                      onOpenEdgeRefiner={() => setIsEdgeRefinerOpen(true)}
-                      onOpenCropModal={() => setIsCropModalOpen(true)}
-                      onOpenEnhanceModal={() => setIsEnhanceModalOpen(true)}
-                      onResetImage={handleResetToUpload}
-                      dimensions={currentImage.dimensions}
-                      canUndo={canUndo}
-                      canRedo={canRedo}
-                      onUndo={undo}
-                      onRedo={redo}
-                    />
-
-                    {/* AI Insights & Edge Detection Bar */}
-                    {currentImage.aiInfo && (
-                      <div className="mt-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span className="text-slate-700">
-                            <strong>AI Edge Profile:</strong>{' '}
-                            {currentImage.aiInfo.edgeComplexity || 'Fine hair & translucent boundary matting'}
-                          </span>
-                        </div>
-                        <span className="text-[11px] font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">
-                          {Math.round((currentImage.aiInfo.confidence || 0.96) * 100)}% Confidence
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right 5 Columns: Background Customizer & Export Panel */}
-                  <div className={`lg:col-span-5 flex flex-col gap-6 ${mobileSection === 'canvas' ? 'hidden lg:flex' : ''}`}>
-                    <div className={mobileSection === 'export' ? 'hidden lg:block' : ''}>
-                      <BackgroundCustomizer
-                        bgSettings={bgSettings}
-                        setBgSettings={setBgSettings}
-                        cutoutPreviewUrl={currentImage.processedUrl}
-                        onHoverPreview={setHoverBgPreview}
-                      />
-                    </div>
-
-                    <div className={mobileSection === 'background' ? 'hidden lg:block' : ''}>
-                      <ExportPanel
+                <Suspense fallback={<StudioWorkspaceSkeleton />}>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left 7 Columns: Canvas Comparison */}
+                    <div className={`lg:col-span-7 flex flex-col ${mobileSection !== 'canvas' ? 'hidden lg:flex' : ''}`}>
+                      <ComparisonSlider
                         originalUrl={currentImage.originalUrl}
                         processedUrl={currentImage.processedUrl || currentImage.originalUrl}
+                        maskUrl={currentImage.maskDataUrl}
                         bgSettings={bgSettings}
+                        compositedUrl={compositedUrl}
+                        hoverBgPreview={hoverBgPreview}
+                        viewMode={viewMode}
+                        setViewMode={setViewMode}
+                        onOpenEdgeRefiner={() => setIsEdgeRefinerOpen(true)}
+                        onOpenCropModal={() => setIsCropModalOpen(true)}
+                        onOpenEnhanceModal={() => setIsEnhanceModalOpen(true)}
+                        onResetImage={handleResetToUpload}
                         dimensions={currentImage.dimensions}
-                        fileName={currentImage.name}
-                        onToast={addToast}
+                        canUndo={canUndo}
+                        canRedo={canRedo}
+                        onUndo={undo}
+                        onRedo={redo}
                       />
+
+                      {/* AI Insights & Edge Detection Bar */}
+                      {currentImage.aiInfo && (
+                        <div className="mt-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span className="text-slate-700">
+                              <strong>AI Edge Profile:</strong>{' '}
+                              {currentImage.aiInfo.edgeComplexity || 'Fine hair & translucent boundary matting'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">
+                            {Math.round((currentImage.aiInfo.confidence || 0.96) * 100)}% Confidence
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right 5 Columns: Background Customizer & Export Panel */}
+                    <div className={`lg:col-span-5 flex flex-col gap-6 ${mobileSection === 'canvas' ? 'hidden lg:flex' : ''}`}>
+                      <div className={mobileSection === 'export' ? 'hidden lg:block' : ''}>
+                        <BackgroundCustomizer
+                          bgSettings={bgSettings}
+                          setBgSettings={setBgSettings}
+                          cutoutPreviewUrl={currentImage.processedUrl}
+                          onHoverPreview={setHoverBgPreview}
+                        />
+                      </div>
+
+                      <div className={mobileSection === 'background' ? 'hidden lg:block' : ''}>
+                        <ExportPanel
+                          originalUrl={currentImage.originalUrl}
+                          processedUrl={currentImage.processedUrl || currentImage.originalUrl}
+                          bgSettings={bgSettings}
+                          dimensions={currentImage.dimensions}
+                          fileName={currentImage.name}
+                          onToast={addToast}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Suspense>
               </div>
             )}
           </>
@@ -784,21 +900,24 @@ export default function App() {
 
         {/* TAB 2: Batch Queue */}
         {activeTab === 'batch' && (
-          <BatchQueue
-            queue={batchQueue}
-            setQueue={setQueue}
-            onOpenInEditor={(item) => {
-              setCurrentImage(item);
-              if (item.processedUrl) {
-                initHistory(item.processedUrl, item.maskDataUrl, bgSettings);
-              }
-              setActiveTab('editor');
-            }}
-            bgSettings={bgSettings}
-            apiSettings={apiSettings}
-            onToast={addToast}
-          />
+          <Suspense fallback={<BatchQueueSkeleton />}>
+            <BatchQueue
+              queue={batchQueue}
+              setQueue={setQueue}
+              onOpenInEditor={(item) => {
+                setCurrentImage(item);
+                if (item.processedUrl) {
+                  initHistory(item.processedUrl, item.maskDataUrl, bgSettings);
+                }
+                setActiveTab('editor');
+              }}
+              bgSettings={bgSettings}
+              apiSettings={apiSettings}
+              onToast={addToast}
+            />
+          </Suspense>
         )}
+        </ErrorBoundary>
       </main>
 
       {/* Magic UI Animated Modern Footer with 3D Three.js CEO Card */}
@@ -812,67 +931,85 @@ export default function App() {
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
       />
 
-      {/* Processing Animation Overlay */}
-      {currentImage?.status === 'processing' && (
-        <ProcessingOverlay
-          progress={currentImage.progress}
-          stage={currentImage.progressStage}
-          onCancel={handleResetToUpload}
-        />
-      )}
+      {/* Lazy-Loaded Studio Modals & Overlays */}
+      <Suspense
+        fallback={
+          currentImage?.status === 'processing' ||
+          isSettingsOpen ||
+          isEdgeRefinerOpen ||
+          isCropModalOpen ||
+          isEnhanceModalOpen ||
+          isShortcutsOpen ? (
+            <ModalLoadingBackdrop
+              label={
+                currentImage?.status === 'processing'
+                  ? 'Initializing AI Background Engine...'
+                  : 'Loading Studio Tool...'
+              }
+            />
+          ) : null
+        }
+      >
+        {currentImage?.status === 'processing' && (
+          <ProcessingOverlay
+            progress={currentImage.progress}
+            stage={currentImage.progressStage}
+            onCancel={handleResetToUpload}
+          />
+        )}
 
-      {/* AI Engine & API Key Settings Modal */}
-      <ApiSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        apiSettings={apiSettings}
-        onSaveSettings={handleSaveApiSettings}
-        onToast={addToast}
-      />
+        {isSettingsOpen && (
+          <ApiSettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            apiSettings={apiSettings}
+            onSaveSettings={handleSaveApiSettings}
+            onToast={addToast}
+          />
+        )}
 
-      {/* Manual Edge Erase/Restore Brush Studio Modal */}
-      {currentImage && (
-        <EdgeRefinerModal
-          isOpen={isEdgeRefinerOpen}
-          onClose={() => setIsEdgeRefinerOpen(false)}
-          originalUrl={currentImage.originalUrl}
-          maskUrl={currentImage.maskDataUrl}
-          onApplyEdits={handleApplyBrushEdits}
-        />
-      )}
+        {currentImage && isEdgeRefinerOpen && (
+          <EdgeRefinerModal
+            isOpen={isEdgeRefinerOpen}
+            onClose={() => setIsEdgeRefinerOpen(false)}
+            originalUrl={currentImage.originalUrl}
+            maskUrl={currentImage.maskDataUrl}
+            onApplyEdits={handleApplyBrushEdits}
+          />
+        )}
 
-      {/* Canvas Crop & Aspect Ratio Studio Modal */}
-      {currentImage && (
-        <CropModal
-          isOpen={isCropModalOpen}
-          onClose={() => setIsCropModalOpen(false)}
-          originalUrl={currentImage.originalUrl}
-          processedUrl={currentImage.processedUrl || currentImage.originalUrl}
-          maskUrl={currentImage.maskDataUrl}
-          dimensions={currentImage.dimensions}
-          onApplyCrop={handleApplyCrop}
-          onToast={addToast}
-        />
-      )}
+        {currentImage && isCropModalOpen && (
+          <CropModal
+            isOpen={isCropModalOpen}
+            onClose={() => setIsCropModalOpen(false)}
+            originalUrl={currentImage.originalUrl}
+            processedUrl={currentImage.processedUrl || currentImage.originalUrl}
+            maskUrl={currentImage.maskDataUrl}
+            dimensions={currentImage.dimensions}
+            onApplyCrop={handleApplyCrop}
+            onToast={addToast}
+          />
+        )}
 
-      {/* AI Picture Enhancer Studio Modal */}
-      {currentImage && (
-        <AIEnhanceModal
-          isOpen={isEnhanceModalOpen}
-          onClose={() => setIsEnhanceModalOpen(false)}
-          originalUrl={currentImage.originalUrl}
-          processedUrl={currentImage.processedUrl || currentImage.originalUrl}
-          compositedUrl={compositedUrl}
-          onApplyEnhance={handleApplyEnhance}
-          onToast={addToast}
-        />
-      )}
+        {currentImage && isEnhanceModalOpen && (
+          <AIEnhanceModal
+            isOpen={isEnhanceModalOpen}
+            onClose={() => setIsEnhanceModalOpen(false)}
+            originalUrl={currentImage.originalUrl}
+            processedUrl={currentImage.processedUrl || currentImage.originalUrl}
+            compositedUrl={compositedUrl}
+            onApplyEnhance={handleApplyEnhance}
+            onToast={addToast}
+          />
+        )}
 
-      {/* Keyboard Shortcuts & Help Modal */}
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+        {isShortcutsOpen && (
+          <ShortcutsModal
+            isOpen={isShortcutsOpen}
+            onClose={() => setIsShortcutsOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Global Toast Notification System */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

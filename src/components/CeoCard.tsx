@@ -11,7 +11,7 @@ export const CeoCard: React.FC<CeoCardProps> = ({
   onLoadCeoSample,
   className = '',
 }) => {
-  const [photoUrl, setPhotoUrl] = useState<string>('/images/abulhassan_ceo.jpg');
+  const [photoUrl, setPhotoUrl] = useState<string>('/images/abulhassan_ceo_thumb.webp');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load and auto-sync photo to filesystem when backend is running
@@ -76,7 +76,11 @@ export const CeoCard: React.FC<CeoCardProps> = ({
 
   const handleTryInEditor = () => {
     if (onLoadCeoSample) {
-      onLoadCeoSample(photoUrl, 'AbulHassan_Founder_CEO.jpg');
+      const sampleSrc =
+        photoUrl === '/images/abulhassan_ceo_thumb.webp'
+          ? '/images/abulhassan_ceo.jpg'
+          : photoUrl;
+      onLoadCeoSample(sampleSrc, 'AbulHassan_Founder_CEO.jpg');
     }
   };
 
@@ -114,9 +118,11 @@ export const CeoCard: React.FC<CeoCardProps> = ({
 
         {/* Bottom Profile Row: Pure remove.bg layout (Avatar + Name + Role) */}
         <div className="pt-5 sm:pt-6 mt-2 flex items-center gap-3.5">
-          <div
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-slate-100 ring-2 ring-slate-100 shrink-0 cursor-pointer hover:ring-blue-300 transition-all"
+            aria-label="Update founder portrait image"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-slate-100 ring-2 ring-slate-100 shrink-0 cursor-pointer hover:ring-blue-300 transition-all p-0 border-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             title="Click to update portrait image"
           >
             <img
@@ -129,14 +135,14 @@ export const CeoCard: React.FC<CeoCardProps> = ({
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover object-top"
             />
-          </div>
+          </button>
 
           <div>
-            <h4 className="font-bold text-sm sm:text-base text-slate-900 leading-tight">
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 leading-tight">
               AbulHassan
-            </h4>
-            <p className="text-xs sm:text-sm text-slate-500 font-normal mt-0.5">
-              Founder & CEO
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 font-normal mt-0.5">
+              Founder &amp; CEO
             </p>
           </div>
         </div>

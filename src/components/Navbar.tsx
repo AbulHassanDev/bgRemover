@@ -65,8 +65,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="sm:hidden">HD</span>
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 hidden md:block">
-              AI Background Remover & Edge Matting Studio
+            <p className="text-[11px] text-slate-600 hidden md:block">
+              AI Background Remover &amp; Edge Matting Studio
             </p>
           </div>
         </a>
@@ -74,6 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Tab Navigation */}
         <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shrink-0">
           <button
+            type="button"
             id="tab-single-editor"
             onClick={() => setActiveTab('editor')}
             className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -88,6 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           <button
+            type="button"
             id="tab-batch-queue"
             onClick={() => setActiveTab('batch')}
             className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all relative ${
@@ -110,12 +112,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Engine Mode Badge / Trigger */}
           <button
+            type="button"
             id="btn-engine-settings"
             onClick={onOpenSettings}
+            aria-label="Configure AI Engine Settings"
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 bg-slate-50 hover:bg-indigo-50/50 text-xs font-semibold text-slate-700 transition-all cursor-pointer"
             title="Configure AI Engine (Neural WASM, Turbo Client, or Cloud API)"
           >
-            {apiSettings.engineMode === 'wasm-neural' && (
+            {(apiSettings.engineMode === 'wasm-neural' ||
+              apiSettings.engineMode === 'neural-server') && (
               <>
                 <Cpu className="w-3.5 h-3.5 text-indigo-600" />
                 <span className="hidden sm:inline text-indigo-900">Neural AI</span>
@@ -133,46 +138,52 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline text-sky-900">Cloud API</span>
               </>
             )}
-            <Settings className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
+            <Settings className="w-3.5 h-3.5 text-slate-500 ml-0.5" />
           </button>
 
           {/* Checkerboard Pattern Selector */}
           <div className="hidden sm:flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
             <button
+              type="button"
               title="Light Checkerboard Pattern"
+              aria-label="Light Checkerboard Pattern"
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-light' }))
               }
               className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center transition-all ${
                 bgSettings.checkerPattern === 'checker-light'
                   ? 'bg-white text-indigo-600 shadow-xs ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <div className="w-3.5 h-3.5 rounded bg-checker-light border border-slate-300" />
             </button>
             <button
+              type="button"
               title="Dark Checkerboard Pattern"
+              aria-label="Dark Checkerboard Pattern"
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-dark' }))
               }
               className={`w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center transition-all ${
                 bgSettings.checkerPattern === 'checker-dark'
                   ? 'bg-white text-indigo-600 shadow-xs ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <div className="w-3.5 h-3.5 rounded bg-checker-dark border border-slate-700" />
             </button>
             <button
+              type="button"
               title="High-Contrast Cyan Grid"
+              aria-label="High-Contrast Cyan Grid"
               onClick={() =>
                 setBgSettings((prev) => ({ ...prev, checkerPattern: 'checker-contrast' }))
               }
               className={`hidden md:flex w-6 h-6 sm:w-7 sm:h-7 rounded-md items-center justify-center transition-all ${
                 bgSettings.checkerPattern === 'checker-contrast'
                   ? 'bg-white text-indigo-600 shadow-xs ring-1 ring-slate-200'
-                  : 'text-slate-500 hover:text-slate-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <div className="w-3.5 h-3.5 rounded bg-checker-contrast border border-sky-600" />
@@ -181,10 +192,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Shortcuts / Help Info */}
           <button
+            type="button"
             id="btn-shortcuts"
             onClick={onOpenShortcuts}
             title="Keyboard Shortcuts & Help"
-            className="p-1.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            aria-label="Keyboard Shortcuts and Help"
+            className="p-1.5 sm:p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           >
             <Keyboard className="w-4 h-4" />
           </button>

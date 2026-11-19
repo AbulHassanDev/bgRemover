@@ -552,6 +552,7 @@ function buildPrerenderedRootHtml(route) {
     .join('\n            ');
 
   return `<div class="min-h-screen bg-slate-50 flex flex-col">
+      <a href="#main-content" class="sr-only focus:not-sr-only">Skip to studio</a>
       <header class="bg-white border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <a href="/" class="font-extrabold text-lg text-slate-900">ClearCut AI</a>
@@ -563,12 +564,12 @@ function buildPrerenderedRootHtml(route) {
           </nav>
         </div>
       </header>
-      <main class="flex-1">
+      <main id="main-content" class="flex-1">
         <section class="max-w-5xl mx-auto py-8 px-4 sm:px-6 text-center">
           <p class="inline-block px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-3">${escapeHtml(route.badge)}</p>
           <h1 class="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">${escapeHtml(route.h1Prefix)} <span class="text-blue-600">${escapeHtml(route.h1Highlight)}</span></h1>
           <p class="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">${escapeHtml(route.subtitle)}</p>
-          <p class="mt-4 text-xs text-slate-500">Supports JPG, PNG, WebP, and AVIF up to 15MB • 100% On-Device WebAssembly AI • Ctrl+V Paste Ready</p>
+          <p class="mt-4 text-xs text-slate-600">Supports JPG, PNG, WebP, and AVIF up to 15MB • 100% On-Device WebAssembly AI • Ctrl+V Paste Ready</p>
         </section>
 
         <section aria-labelledby="workflow-overview-heading" class="max-w-5xl mx-auto px-4 sm:px-6 mt-6">

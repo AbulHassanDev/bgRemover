@@ -24,8 +24,47 @@ function getAI(): GoogleGenAI | null {
   return aiClient;
 }
 
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isSafeExternalUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host.endsWith(".local") ||
+      host.endsWith(".internal") ||
+      host === "::1" ||
+      host.startsWith("[") ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Robustly resolve image payload from HTTP/HTTPS URL, Data URL, or raw Base64
+ * Robustly resolve image payload from safe HTTPS URL, Data URL, or raw Base64
  */
 async function resolveImageBufferAndBase64(
   input: string,
@@ -37,12 +76,22 @@ async function resolveImageBufferAndBase64(
 }> {
   const trimmed = input.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    const resp = await fetch(trimmed);
+    if (!isSafeExternalUrl(trimmed)) {
+      throw new Error("Disallowed or unsafe external image URL");
+    }
+    const resp = await fetch(trimmed, { signal: AbortSignal.timeout(15000) });
     if (!resp.ok) {
       throw new Error(`Failed to fetch image from URL: ${resp.status} ${resp.statusText}`);
     }
+    const contentLength = Number(resp.headers.get("content-length") || "0");
+    if (contentLength > MAX_IMAGE_BYTES) {
+      throw new Error("Remote image exceeds 20MB safety limit");
+    }
     const contentType = resp.headers.get("content-type") || fallbackMime;
     const arrayBuffer = await resp.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_IMAGE_BYTES) {
+      throw new Error("Remote image exceeds 20MB safety limit");
+    }
     const buffer = Buffer.from(arrayBuffer);
     const cleanBase64 = buffer.toString("base64");
     const mimeType = contentType.split(";")[0].trim() || fallbackMime;
@@ -53,6 +102,9 @@ async function resolveImageBufferAndBase64(
   const mimeType = match ? match[1] : fallbackMime;
   const cleanBase64 = trimmed.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "").trim();
   const buffer = Buffer.from(cleanBase64, "base64");
+  if (buffer.byteLength > MAX_IMAGE_BYTES) {
+    throw new Error("Image payload exceeds 20MB safety limit");
+  }
   return { cleanBase64, mimeType, buffer };
 }
 
@@ -60,8 +112,15 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+  });
+
+  app.use(express.json({ limit: "25mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
   // Health check
   app.get("/api/health", (_req, res) => {
@@ -760,10 +819,23 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
         : "image/png";
       const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "");
       const buffer = Buffer.from(cleanBase64, "base64");
+      if (buffer.byteLength > MAX_IMAGE_BYTES) {
+        res.status(413).json({ error: "Image exceeds 20MB share limit" });
+        return;
+      }
+
+      if (mobileShareStore.size >= 50) {
+        const oldestKey = mobileShareStore.keys().next().value;
+        if (oldestKey) mobileShareStore.delete(oldestKey);
+      }
 
       const id = Math.random().toString(36).substring(2, 8) + Date.now().toString(36).substring(4);
       const ext = format === "jpeg" || format === "jpg" ? "jpg" : format === "webp" ? "webp" : "png";
-      const cleanFileName = `${fileName.replace(/\.[^/.]+$/, "")}-cutout.${ext}`;
+      const safeBaseName = String(fileName)
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^\w.\- ()]/g, "_")
+        .slice(0, 80) || "clearcut-image";
+      const cleanFileName = `${safeBaseName}-cutout.${ext}`;
 
       mobileShareStore.set(id, {
         id,
@@ -857,6 +929,9 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
       return;
     }
 
+    const safeFileNameHtml = escapeHtml(item.fileName);
+    const safeFormatHtml = escapeHtml(item.format);
+    const safeShareId = encodeURIComponent(item.id);
     const sizeKb = (item.fileSize / 1024).toFixed(1);
     const sizeMb = (item.fileSize / (1024 * 1024)).toFixed(2);
     const formattedSize = item.fileSize > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`;
@@ -868,7 +943,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#4f46e5">
-  <title>Download ${item.fileName} - ClearCut AI</title>
+  <title>Download ${safeFileNameHtml} - ClearCut AI</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body {
@@ -1077,12 +1152,12 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
 
     <div class="preview-card">
       <div class="image-stage">
-        <img id="processed-img" src="/api/export/raw/${item.id}" alt="Cutout preview" class="preview-img" />
+        <img id="processed-img" src="/api/export/raw/${safeShareId}" alt="Cutout preview" class="preview-img" />
       </div>
       <div class="meta-bar">
-        <div class="file-name" title="${item.fileName}">${item.fileName}</div>
+        <div class="file-name" title="${safeFileNameHtml}">${safeFileNameHtml}</div>
         <div class="file-tags">
-          <span class="tag">${item.format}</span>
+          <span class="tag">${safeFormatHtml}</span>
           <span class="tag">${formattedSize}</span>
           <span class="tag">${resolutionText}</span>
         </div>
@@ -1090,12 +1165,12 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
     </div>
 
     <div class="actions-card">
-      <a id="download-btn" href="/api/export/download/${item.id}" download="${item.fileName}" class="btn-primary">
+      <a id="download-btn" href="/api/export/download/${safeShareId}" download="${safeFileNameHtml}" class="btn-primary">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         <span>Download to Device</span>
       </a>
 
-      <button id="share-btn" class="btn-secondary">
+      <button id="share-btn" type="button" class="btn-secondary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         <span>Save to Photos / Share</span>
       </button>
@@ -1115,6 +1190,9 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
   <script>
     const shareBtn = document.getElementById('share-btn');
     const toast = document.getElementById('toast');
+    const SHARE_ID = ${JSON.stringify(safeShareId)};
+    const SHARE_FILE_NAME = ${JSON.stringify(item.fileName)};
+    const SHARE_CONTENT_TYPE = ${JSON.stringify(item.contentType)};
 
     function showToast(msg) {
       toast.innerText = msg;
@@ -1125,24 +1203,23 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
     if (shareBtn) {
       shareBtn.addEventListener('click', async () => {
         try {
-          const res = await fetch('/api/export/raw/${item.id}');
+          const res = await fetch('/api/export/raw/' + SHARE_ID);
           const blob = await res.blob();
-          const file = new File([blob], '${item.fileName}', { type: '${item.contentType}' });
+          const file = new File([blob], SHARE_FILE_NAME, { type: SHARE_CONTENT_TYPE });
 
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: '${item.fileName}',
+              title: SHARE_FILE_NAME,
               text: 'Processed with ClearCut AI',
             });
             showToast('Shared successfully!');
           } else if (navigator.share) {
             await navigator.share({
-              title: '${item.fileName}',
+              title: SHARE_FILE_NAME,
               url: window.location.href,
             });
           } else {
-            // Fallback trigger direct download
             document.getElementById('download-btn').click();
             showToast('Downloading image...');
           }

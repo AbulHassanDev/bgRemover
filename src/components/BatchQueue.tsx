@@ -154,10 +154,21 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
   };
 
   const handleDeleteItem = (id: string) => {
-    setQueue((prev) => prev.filter((it) => it.id !== id));
+    setQueue((prev) => {
+      const target = prev.find((it) => it.id === id);
+      if (target?.originalUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.originalUrl);
+      }
+      return prev.filter((it) => it.id !== id);
+    });
   };
 
   const handleClearAll = () => {
+    queue.forEach((it) => {
+      if (it.originalUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(it.originalUrl);
+      }
+    });
     setQueue([]);
   };
 
@@ -188,13 +199,19 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
       const zip = new JSZip();
       const folder = zip.folder('clearcut-batch-transparent');
 
+      const usedNames = new Set<string>();
       for (let i = 0; i < completedItems.length; i++) {
         const it = completedItems[i];
         if (!it.processedUrl) continue;
         const res = await fetch(it.processedUrl);
         const blob = await res.blob();
         const cleanName = it.name.replace(/\.[^/.]+$/, '') || `image-${i + 1}`;
-        folder?.file(`${cleanName}-cutout.png`, blob);
+        let entryName = `${cleanName}-cutout.png`;
+        if (usedNames.has(entryName)) {
+          entryName = `${cleanName}-${i + 1}-cutout.png`;
+        }
+        usedNames.add(entryName);
+        folder?.file(entryName, blob);
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
@@ -229,7 +246,7 @@ export const BatchQueue: React.FC<BatchQueueProps> = ({
               {queue.length} / 10 images
             </span>
           </div>
-          <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
             Process multiple images simultaneously and download all transparent PNGs in a ZIP file.
           </p>
         </div>

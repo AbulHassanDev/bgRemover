@@ -39,7 +39,7 @@ export const Footer: React.FC<FooterProps> = ({
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
             They love us. You will too.
           </h2>
-          <p className="mt-2 text-sm sm:text-base text-slate-500 max-w-lg mx-auto">
+          <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-lg mx-auto">
             Studio-quality background removal and edge matting with 100% on-device privacy.
           </p>
 
@@ -67,7 +67,7 @@ export const Footer: React.FC<FooterProps> = ({
               </span>
             </a>
 
-            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
               Browser-native AI background removal and image editing. Built for photographers,
               e-commerce catalogs, and creators who value speed and total privacy.
             </p>
@@ -77,7 +77,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
                 title="LinkedIn"
                 aria-label="LinkedIn Profile"
               >
@@ -87,7 +87,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
                 title="GitHub"
                 aria-label="GitHub Profile"
               >
@@ -97,7 +97,7 @@ export const Footer: React.FC<FooterProps> = ({
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-600 hover:text-slate-800 border border-slate-200 flex items-center justify-center transition-colors"
                 title="Twitter / X"
                 aria-label="Twitter Profile"
               >
@@ -108,9 +108,9 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Core Studio Workflows (Internal Links 1-5) */}
           <div className="space-y-2.5 sm:space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Studio Workflows
-            </h4>
+            </h3>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li>
                 <a
@@ -162,9 +162,9 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Specialized Cutout Tools (Internal Links 6-10) */}
           <div className="space-y-2.5 sm:space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Specialized Cutouts
-            </h4>
+            </h3>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li>
                 <a
@@ -216,9 +216,9 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Privacy & Architecture */}
           <div className="space-y-2.5 sm:space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Privacy &amp; Performance
-            </h4>
+            </h3>
             <ul className="space-y-2 text-xs sm:text-sm text-slate-600">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -241,10 +241,10 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Leadership & Inquiries */}
           <div className="space-y-2.5 sm:space-y-3">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
               Executive Office
-            </h4>
-            <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
               Founded &amp; led by <strong className="font-semibold text-slate-800">AbulHassan</strong>.
               For enterprise licensing, API integrations, or media inquiries:
             </p>
@@ -259,7 +259,7 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
         {/* Bottom Sub-Footer Bar */}
-        <div className="mt-10 sm:mt-12 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center sm:text-left">
+        <div className="mt-10 sm:mt-12 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600 text-center sm:text-left">
           <p>
             © {new Date().getFullYear()} ClearCut AI. Founded by AbulHassan. All rights reserved.
           </p>

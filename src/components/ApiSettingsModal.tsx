@@ -35,6 +35,17 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
     setLocalSettings(apiSettings);
   }, [apiSettings, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSave = () => {
@@ -44,28 +55,38 @@ export const ApiSettingsModal: React.FC<ApiSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="api-settings-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150"
+    >
       <div className="w-full max-w-lg bg-white rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">
-                AI Engine & API Settings
+              <h3 id="api-settings-title" className="text-base font-bold text-slate-900">
+                AI Engine &amp; API Settings
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-600">
                 Choose between on-device Neural AI, Ultra-Fast Client, or Cloud APIs
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            aria-label="Close AI engine settings dialog"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 

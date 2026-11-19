@@ -253,12 +253,12 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-bold text-slate-400">STEP 01</span>
+              <span className="text-[11px] font-bold text-slate-600">STEP 01</span>
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
               Drop, Browse, or Paste (Ctrl+V)
             </h3>
-            <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
               Load any JPG, PNG, WebP, or AVIF photo up to 15MB—or switch to the{' '}
               <a
                 href="/batch-background-remover"
@@ -280,12 +280,12 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
                 <Cpu className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-bold text-slate-400">STEP 02</span>
+              <span className="text-[11px] font-bold text-slate-600">STEP 02</span>
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
               On-Device WebAssembly AI
             </h3>
-            <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
               Neural edge segmentation isolates subjects in sub-seconds locally on your CPU/GPU—keeping private photos completely off remote servers.
             </p>
           </article>
@@ -295,12 +295,12 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
                 <SlidersHorizontal className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-bold text-slate-400">STEP 03</span>
+              <span className="text-[11px] font-bold text-slate-600">STEP 03</span>
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
               Refine Edges &amp; Export Lossless
             </h3>
-            <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed">
+            <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
               Touch up fine hair with Erase/Restore brushes, swap backgrounds or add drop shadows, and download full-resolution PNG or WebP files.
             </p>
           </article>
@@ -317,7 +317,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
             >
               Specialized Background Removal Workflows
             </h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            <p className="mt-1 text-xs sm:text-sm text-slate-600">
               Explore tailored presets for passport IDs, transparent logos, car listings, e-commerce, and bulk batches.
             </p>
           </div>
@@ -359,15 +359,15 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                       <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
                         {item.title}
                       </h3>
-                      <span className="text-[11px] font-medium text-slate-400">
+                      <span className="text-[11px] font-medium text-slate-600">
                         {item.tag}
                       </span>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
                 </div>
 
-                <p className="mt-3 text-xs sm:text-sm text-slate-500 leading-relaxed">
+                <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
                   {item.description}
                 </p>
               </a>
@@ -391,7 +391,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                 >
                   ClearCut AI vs. Credit-Based Cloud Tools
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-600">
                   Why creators switch to browser-native background removal
                 </p>
               </div>
@@ -410,7 +410,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-600">
                   <th className="py-3 px-5 sm:px-7">Capability</th>
                   <th className="py-3 px-4 text-center text-blue-700">ClearCut AI</th>
                   <th className="py-3 px-4 text-center">Typical Cloud Tools</th>
@@ -423,17 +423,23 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                       {row.feature}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-600">
-                        <Check className="w-3.5 h-3.5" />
+                      <span
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-700"
+                        aria-label="Included free"
+                      >
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {row.cloudTools === false ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-400">
-                          <X className="w-3.5 h-3.5" />
+                        <span
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600"
+                          aria-label="Not included"
+                        >
+                          <X className="w-3.5 h-3.5" aria-hidden="true" />
                         </span>
                       ) : (
-                        <span className="text-[11px] font-medium text-slate-500">
+                        <span className="text-[11px] font-medium text-slate-600">
                           {row.cloudTools}
                         </span>
                       )}
@@ -455,7 +461,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
           >
             Frequently Asked Questions
           </h2>
-          <p className="mt-1.5 text-xs sm:text-sm text-slate-500">
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-600">
             Answers about on-device privacy, HD formats, and {activeRoute.navLabel.toLowerCase()}.
           </p>
         </div>
@@ -478,7 +484,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                     {faq.question}
                   </h3>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 text-slate-600 shrink-0 transition-transform duration-200 ${
                       isOpen ? 'rotate-180 text-blue-600' : ''
                     }`}
                   />
