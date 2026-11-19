@@ -6,6 +6,11 @@ interface ModelContextTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: {
+    readOnlyHint?: boolean;
+    consequentialHint?: boolean;
+    untrustedContentHint?: boolean;
+  };
   execute: (input: Record<string, unknown>) => Promise<unknown> | unknown;
 }
 
@@ -62,6 +67,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         type: 'object',
         properties: {},
       },
+      annotations: { readOnlyHint: true, consequentialHint: false },
       execute: () => callbacks.getState(),
     },
     {
@@ -72,6 +78,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         type: 'object',
         properties: {},
       },
+      annotations: { readOnlyHint: true, consequentialHint: false },
       execute: () => ({
         workflows: SEO_ROUTE_LIST.map((r) => ({
           path: r.path,
@@ -101,6 +108,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         },
         required: ['path'],
       },
+      annotations: { readOnlyHint: false, consequentialHint: false },
       execute: (input) => {
         const targetPath = typeof input.path === 'string' ? input.path : '/';
         callbacks.navigateRoute(targetPath);
@@ -114,6 +122,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         type: 'object',
         properties: {},
       },
+      annotations: { readOnlyHint: false, consequentialHint: false },
       execute: () => {
         callbacks.openBatch();
         return { activeTab: 'batch' };
@@ -134,6 +143,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         },
         required: ['sampleId'],
       },
+      annotations: { readOnlyHint: false, consequentialHint: false },
       execute: (input) => {
         const sample = SAMPLE_IMAGES.find((s) => s.id === input.sampleId);
         if (!sample) {
@@ -150,6 +160,7 @@ export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => voi
         type: 'object',
         properties: {},
       },
+      annotations: { readOnlyHint: false, consequentialHint: false },
       execute: () => {
         callbacks.resetStudio();
         return { reset: true };

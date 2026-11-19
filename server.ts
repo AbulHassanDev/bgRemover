@@ -1248,7 +1248,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
   app.get("/robots.txt", (req, res) => {
     const origin = resolveOrigin(req);
     res.type("text/plain").send(
-      `User-agent: *\nAllow: /\nAllow: /.well-known/\nAllow: /llms.txt\nAllow: /llms-full.txt\nDisallow: /api/\nDisallow: /share/\n\nAgentmap: ${origin}/.well-known/ard.json\nSitemap: ${origin}/sitemap.xml\n`
+      `User-agent: *\nAllow: /\nAllow: /.well-known/\nAllow: /llms.txt\nAllow: /llms-full.txt\nDisallow: /api/\nDisallow: /share/\n\nSitemap: ${origin}/sitemap.xml\n`
     );
   });
 

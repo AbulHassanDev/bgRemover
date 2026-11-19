@@ -6,5 +6,4 @@ Allow: /llms-full.txt
 Disallow: /api/
 Disallow: /share/
 
-Agentmap: https://bg-remover-orpin-chi.vercel.app/.well-known/ard.json
 Sitemap: https://bg-remover-orpin-chi.vercel.app/sitemap.xml
