@@ -423,20 +423,16 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                       {row.feature}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-700"
-                        aria-label="Included free"
-                      >
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-700">
                         <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span className="sr-only">Included free</span>
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-center">
                       {row.cloudTools === false ? (
-                        <span
-                          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600"
-                          aria-label="Not included"
-                        >
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600">
                           <X className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span className="sr-only">Not included</span>
                         </span>
                       ) : (
                         <span className="text-[11px] font-medium text-slate-600">

@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           title="ClearCut AI — Home"
         >
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm shadow-indigo-200 shrink-0">
-            <Wand2 className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Wand2 className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 sm:gap-2">
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ClearCut AI
               </span>
               <span className="hidden xs:inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 sm:px-2 py-0.5 rounded-full border border-indigo-100/80">
-                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indigo-500" />
+                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indigo-500" aria-hidden="true" />
                 <span className="hidden sm:inline">Precision Edge</span>
                 <span className="sm:hidden">HD</span>
               </span>
@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-3.5 h-3.5" aria-hidden="true" />
             <span>Batch</span>
             {batchCount > 0 && (
               <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold ml-0.5">
@@ -124,23 +124,23 @@ export const Navbar: React.FC<NavbarProps> = ({
             {(apiSettings.engineMode === 'wasm-neural' ||
               apiSettings.engineMode === 'neural-server') && (
               <>
-                <Cpu className="w-3.5 h-3.5 text-indigo-600" />
+                <Cpu className="w-3.5 h-3.5 text-indigo-600" aria-hidden="true" />
                 <span className="hidden sm:inline text-indigo-900">Neural AI</span>
               </>
             )}
             {apiSettings.engineMode === 'fast-client' && (
               <>
-                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <Zap className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
                 <span className="hidden sm:inline text-amber-900">Turbo</span>
               </>
             )}
             {apiSettings.engineMode === 'cloud-api' && (
               <>
-                <Cloud className="w-3.5 h-3.5 text-sky-600" />
+                <Cloud className="w-3.5 h-3.5 text-sky-600" aria-hidden="true" />
                 <span className="hidden sm:inline text-sky-900">Cloud API</span>
               </>
             )}
-            <Settings className="w-3.5 h-3.5 text-slate-500 ml-0.5" />
+            <Settings className="w-3.5 h-3.5 text-slate-500 ml-0.5" aria-hidden="true" />
           </button>
 
           {/* Checkerboard Pattern Selector */}
@@ -204,7 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Keyboard Shortcuts and Help"
             className="p-1.5 sm:p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           >
-            <Keyboard className="w-4 h-4" />
+            <Keyboard className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       </div>
