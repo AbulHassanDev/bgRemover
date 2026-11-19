@@ -1,0 +1,33 @@
+{
+  "name": "ClearCut AI Browser Studio",
+  "version": "1.0.0",
+  "description": "Free, 100% private client-side WebAssembly AI background remover and precision edge studio.",
+  "documentationUrl": "https://bg-remover-orpin-chi.vercel.app/llms.txt",
+  "transport": "webmcp",
+  "tools": [
+    {
+      "name": "get_studio_state",
+      "description": "Returns current ClearCut AI studio navigation route, active tab (editor or batch), image processing status, and batch queue count."
+    },
+    {
+      "name": "list_workflows",
+      "description": "Lists all 10 ClearCut AI background removal workflow pages and built-in sample image IDs."
+    },
+    {
+      "name": "navigate_workflow",
+      "description": "Navigates to one of the 10 ClearCut AI background removal workflow routes."
+    },
+    {
+      "name": "open_batch_queue",
+      "description": "Switches the studio directly to the multi-image Batch Queue and ZIP export view."
+    },
+    {
+      "name": "run_sample_background_removal",
+      "description": "Loads one of the built-in sample images and immediately runs client-side AI background removal."
+    },
+    {
+      "name": "reset_studio",
+      "description": "Clears the active studio image and returns to the upload dropzone."
+    }
+  ]
+}

@@ -139,34 +139,8 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
         )}
       </div>
 
-      {/* Main Drag-and-Drop Area */}
-      <div
-        id="dropzone-container"
-        role="button"
-        tabIndex={0}
-        aria-busy={isLoading}
-        aria-label="Upload or drop image files to remove background"
-        onDrop={handleDrop}
-        onDragOver={(e) => {
-          onPrefetchStudio?.();
-          handleDragOver(e);
-        }}
-        onDragLeave={handleDragLeave}
-        onMouseEnter={() => onPrefetchStudio?.()}
-        onFocus={() => onPrefetchStudio?.()}
-        onClick={() => fileInputRef.current?.click()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            fileInputRef.current?.click();
-          }
-        }}
-        className={`relative group cursor-pointer border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center transition-all duration-200 bg-white/70 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-          isDragOver
-            ? 'border-indigo-500 bg-indigo-50/70 scale-[1.01] shadow-lg shadow-indigo-100'
-            : 'border-slate-300 hover:border-indigo-400 hover:bg-slate-50/80'
-        }`}
-      >
+      {/* Main Drag-and-Drop Area (input kept sibling to role=button to avoid nested-interactive accessibility violation) */}
+      <div className="relative">
         <input
           ref={fileInputRef}
           id="file-upload-input"
@@ -181,41 +155,68 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
             }
           }}
         />
+        <div
+          id="dropzone-container"
+          role="button"
+          tabIndex={0}
+          aria-busy={isLoading}
+          aria-label="Upload or drop image files to remove background"
+          onDrop={handleDrop}
+          onDragOver={(e) => {
+            onPrefetchStudio?.();
+            handleDragOver(e);
+          }}
+          onDragLeave={handleDragLeave}
+          onMouseEnter={() => onPrefetchStudio?.()}
+          onFocus={() => onPrefetchStudio?.()}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          className={`relative group cursor-pointer border-2 border-dashed rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center transition-all duration-200 bg-white/70 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            isDragOver
+              ? 'border-indigo-500 bg-indigo-50/70 scale-[1.01] shadow-lg shadow-indigo-100'
+              : 'border-slate-300 hover:border-indigo-400 hover:bg-slate-50/80'
+          }`}
+        >
+          <div className="flex flex-col items-center justify-center max-w-md mx-auto">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xs">
+              <Upload className="w-6 h-6 sm:w-8 sm:h-8" aria-hidden="true" />
+            </div>
 
-        <div className="flex flex-col items-center justify-center max-w-md mx-auto">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xs">
-            <Upload className="w-6 h-6 sm:w-8 sm:h-8" />
-          </div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
+              {isBatchPage
+                ? 'Drag and drop one or multiple images here'
+                : 'Drag and drop your image here'}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mb-3 sm:mb-4">
+              or{' '}
+              <span className="text-indigo-600 font-semibold underline underline-offset-2">
+                browse files
+              </span>{' '}
+              on your device
+            </p>
 
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
-            {isBatchPage
-              ? 'Drag and drop one or multiple images here'
-              : 'Drag and drop your image here'}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600 mb-3 sm:mb-4">
-            or{' '}
-            <span className="text-indigo-600 font-semibold underline underline-offset-2">
-              browse files
-            </span>{' '}
-            on your device
-          </p>
+            {/* Quick keyboard paste badge */}
+            <div className="hidden xs:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[11px] sm:text-xs font-medium border border-slate-200 mb-3 sm:mb-4">
+              <Clipboard className="w-3.5 h-3.5 text-indigo-500" aria-hidden="true" />
+              <span>Tip: Press </span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-[10px] sm:text-[11px] font-bold text-slate-700 shadow-xs border border-slate-300">
+                Ctrl + V
+              </kbd>
+              <span> to paste from clipboard</span>
+            </div>
 
-          {/* Quick keyboard paste badge */}
-          <div className="hidden xs:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-[11px] sm:text-xs font-medium border border-slate-200 mb-3 sm:mb-4">
-            <Clipboard className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Tip: Press </span>
-            <kbd className="px-1.5 py-0.5 rounded bg-white font-mono text-[10px] sm:text-[11px] font-bold text-slate-700 shadow-xs border border-slate-300">
-              Ctrl + V
-            </kbd>
-            <span> to paste from clipboard</span>
-          </div>
-
-          <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4 text-[11px] sm:text-xs text-slate-600">
-            <span>Supports JPG, PNG, WebP</span>
-            <span>•</span>
-            <span>Up to 15MB</span>
-            <span>•</span>
-            <span>High Resolution</span>
+            <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-4 text-[11px] sm:text-xs text-slate-600">
+              <span>Supports JPG, PNG, WebP</span>
+              <span aria-hidden="true">•</span>
+              <span>Up to 15MB</span>
+              <span aria-hidden="true">•</span>
+              <span>High Resolution</span>
+            </div>
           </div>
         </div>
       </div>
@@ -284,7 +285,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
                       crossOrigin="anonymous"
                     />
                   )}
-                  <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 text-[9px] sm:text-[10px] font-bold bg-slate-900/80 backdrop-blur-xs text-white px-1.5 sm:px-2 py-0.5 rounded-full">
+                  <span className="absolute top-1 left-1 sm:top-1.5 sm:left-1.5 text-[9px] sm:text-[10px] font-bold bg-slate-900/90 backdrop-blur-xs text-white px-1.5 sm:px-2 py-0.5 rounded-full">
                     {sample.category}
                   </span>
                   {isSampleLoading && (

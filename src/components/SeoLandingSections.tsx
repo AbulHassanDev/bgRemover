@@ -242,7 +242,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
           >
             How Client-Side Background Removal Works
           </h2>
-          <p className="mt-2 text-xs sm:text-sm text-slate-500">
+          <p className="mt-2 text-xs sm:text-sm text-slate-600">
             Studio-grade cutouts directly in your browser—no file queues, no cloud storage, and no watermarks.
           </p>
         </div>
@@ -364,7 +364,7 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                       </span>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" aria-hidden="true" />
                 </div>
 
                 <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
@@ -474,21 +474,22 @@ export const SeoLandingSections: React.FC<SeoLandingSectionsProps> = ({
                 key={faq.question}
                 className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs"
               >
-                <button
-                  type="button"
-                  aria-expanded={isOpen}
-                  onClick={() => setOpenFaqIdx(isOpen ? null : idx)}
-                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer hover:bg-slate-50/70 transition-colors"
-                >
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-                    {faq.question}
-                  </h3>
-                  <ChevronDown
-                    className={`w-4 h-4 text-slate-600 shrink-0 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180 text-blue-600' : ''
-                    }`}
-                  />
-                </button>
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenFaqIdx(isOpen ? null : idx)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer hover:bg-slate-50/70 transition-colors"
+                  >
+                    <span>{faq.question}</span>
+                    <ChevronDown
+                      aria-hidden="true"
+                      className={`w-4 h-4 text-slate-600 shrink-0 transition-transform duration-200 ${
+                        isOpen ? 'rotate-180 text-blue-600' : ''
+                      }`}
+                    />
+                  </button>
+                </h3>
                 {isOpen && (
                   <div className="px-5 pb-4 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-100/80 mt-0.5 pt-3">
                     {faq.answer}

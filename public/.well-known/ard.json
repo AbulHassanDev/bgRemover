@@ -1,0 +1,22 @@
+{
+  "specVersion": "0.91",
+  "host": {
+    "displayName": "ClearCut AI",
+    "identifier": "bg-remover-orpin-chi.vercel.app"
+  },
+  "entries": [
+    {
+      "@context": "https://agenticresourcediscovery.org/context/v1",
+      "identifier": "urn:air:bg-remover-orpin-chi.vercel.app:studio:webmcp",
+      "displayName": "ClearCut AI Studio Tools (WebMCP)",
+      "type": "application/mcp-server-card+json",
+      "url": "https://bg-remover-orpin-chi.vercel.app/.well-known/mcp-server-card.json",
+      "description": "Free browser-native AI background removal workflows, bulk ZIP batch studio, and built-in sample cutout tools registered via WebMCP.",
+      "representativeQueries": [
+        "Remove background from an image privately in the browser without uploading",
+        "Open the batch background remover queue for multiple product photos",
+        "Run sample portrait hair cutout in ClearCut AI studio"
+      ]
+    }
+  ]
+}

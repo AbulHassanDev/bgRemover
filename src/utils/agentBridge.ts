@@ -9,11 +9,17 @@ interface ModelContextTool {
   execute: (input: Record<string, unknown>) => Promise<unknown> | unknown;
 }
 
+interface ModelContextContainer {
+  registerTool?: (tool: ModelContextTool) => void;
+  unregisterTool?: (name: string) => void;
+}
+
 interface NavigatorWithModelContext extends Navigator {
-  modelContext?: {
-    registerTool?: (tool: ModelContextTool) => void;
-    unregisterTool?: (name: string) => void;
-  };
+  modelContext?: ModelContextContainer;
+}
+
+interface DocumentWithModelContext extends Document {
+  modelContext?: ModelContextContainer;
 }
 
 export interface AgentBridgeCallbacks {
@@ -31,10 +37,16 @@ export interface AgentBridgeCallbacks {
 }
 
 export function registerAgenticTools(callbacks: AgentBridgeCallbacks): () => void {
-  if (typeof navigator === 'undefined') return () => {};
+  const nav = typeof navigator !== 'undefined' ? (navigator as NavigatorWithModelContext) : null;
+  const doc = typeof document !== 'undefined' ? (document as DocumentWithModelContext) : null;
+  const modelContext =
+    (nav?.modelContext && typeof nav.modelContext.registerTool === 'function'
+      ? nav.modelContext
+      : null) ||
+    (doc?.modelContext && typeof doc.modelContext.registerTool === 'function'
+      ? doc.modelContext
+      : null);
 
-  const nav = navigator as NavigatorWithModelContext;
-  const modelContext = nav.modelContext;
   if (!modelContext || typeof modelContext.registerTool !== 'function') {
     return () => {};
   }

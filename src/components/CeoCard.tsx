@@ -91,6 +91,8 @@ export const CeoCard: React.FC<CeoCardProps> = ({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        tabIndex={-1}
+        aria-hidden="true"
         className="hidden"
         onChange={handlePhotoSelect}
       />

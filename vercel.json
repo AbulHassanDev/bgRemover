@@ -42,8 +42,29 @@
       ]
     },
     {
+      "source": "/\\.well-known/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
+        {
+          "key": "Link",
+          "value": "</.well-known/ard.json>; rel=\"ard\""
+        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
@@ -65,7 +86,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|images/|assets/|robots\\.txt|sitemap\\.xml|llms(?:-full)?\\.txt|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
+      "source": "/((?!api/|images/|assets/|\\.well-known/|robots\\.txt|sitemap\\.xml|llms(?:-full)?\\.txt|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
       "destination": "/index.html"
     }
   ]
