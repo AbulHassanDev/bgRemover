@@ -86,7 +86,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api/|images/|assets/|\\.well-known/|robots\\.txt|sitemap\\.xml|llms(?:-full)?\\.txt|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
+      "source": "/((?!api/|_vercel/|images/|assets/|\\.well-known/|robots\\.txt|sitemap\\.xml|llms(?:-full)?\\.txt|favicon[^/]*|apple-touch-icon\\.png|site\\.webmanifest|google[a-zA-Z0-9]+\\.html).*)",
       "destination": "/index.html"
     }
   ]
