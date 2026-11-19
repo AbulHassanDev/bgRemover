@@ -1268,6 +1268,7 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
 
   // Vite middleware in dev / Static files in production
   if (process.env.NODE_ENV !== "production") {
+    process.env.VITE_EXPRESS_BACKEND = "true";
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1346,6 +1347,10 @@ Provide a concise 1-2 sentence photography assessment in 'reasoning', a list of 
         .replace(
           /<script[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/i,
           `<script id="clearcut-jsonld" type="application/ld+json">${schemaJson}</script>`
+        )
+        .replace(
+          "</head>",
+          '  <meta name="clearcut-backend" content="express" />\n  </head>'
         );
 
       res.status(200).type("text/html").send(html);

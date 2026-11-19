@@ -713,8 +713,31 @@ export async function removeBackgroundFastClient(
 let cachedImglyModule: any = null;
 let cachedBackendAlive: boolean | null = null;
 
+function hasConfiguredExpressBackend(): boolean {
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  if (
+    env?.VITE_ENABLE_API_HEALTH === 'true' ||
+    env?.VITE_EXPRESS_BACKEND === 'true'
+  ) {
+    return true;
+  }
+  if (typeof document !== 'undefined') {
+    const marker = document
+      .querySelector('meta[name="clearcut-backend"]')
+      ?.getAttribute('content');
+    if (marker === 'express') {
+      return true;
+    }
+  }
+  return false;
+}
+
 export async function isExpressProxyAvailable(): Promise<boolean> {
   if (cachedBackendAlive !== null) return cachedBackendAlive;
+  if (!hasConfiguredExpressBackend()) {
+    cachedBackendAlive = false;
+    return false;
+  }
   try {
     const res = await fetch('/api/health', { method: 'GET' });
     const ct = res.headers.get('content-type') || '';
